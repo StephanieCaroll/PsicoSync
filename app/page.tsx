@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import Image from 'next/image';
 import Swal from 'sweetalert2';
+import LoginScreen from '../public/components/LoginScreen';
 
 interface Sessao extends Models.Document {
   paciente_nome: string;
@@ -81,6 +82,7 @@ const DB_ID = '694ddfd0001add22bb73';
 const COLL_ID = '694ddff70010eece624a';
 
 export default function PsicoSync() {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [activeTab, setActiveTab] = useState<'dashboard' | 'sessao' | 'historico'>('dashboard');
   const [paciente, setPaciente] = useState('');
   const [anotacoes, setAnotacoes] = useState('');
@@ -91,7 +93,6 @@ export default function PsicoSync() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
   
-  // NOVOS ESTADOS PARA AS NOVAS FUNCIONALIDADES
   const [editingSession, setEditingSession] = useState<Sessao | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterStatus, setFilterStatus] = useState<string>('todos');
@@ -112,7 +113,6 @@ export default function PsicoSync() {
   const [darkMode, setDarkMode] = useState(false);
   const [voiceSupported, setVoiceSupported] = useState(false);
   
-  // NOVO ESTADO PARA META MENSAL EDITÁVEL
   const [monthlyGoal, setMonthlyGoal] = useState(40);
   const [editingGoal, setEditingGoal] = useState(false);
   const [tempGoal, setTempGoal] = useState('40');
@@ -121,7 +121,6 @@ export default function PsicoSync() {
   const recognitionRef = useRef<any>(null);
   const goalInputRef = useRef<HTMLInputElement>(null);
 
-  // SweetAlert2 Configuration
   const showAlert = (title: string, text: string, icon: 'success' | 'error' | 'warning' | 'info' | 'question' = 'success') => {
     return Swal.fire({
       title,
@@ -183,7 +182,22 @@ export default function PsicoSync() {
     });
   };
 
-  // Verificar tamanho da tela
+  const handleLogout = () => {
+    showConfirm(
+      'Sair do Sistema',
+      'Deseja realmente sair do PsicoSync?',
+      'Sim, Sair',
+      'Cancelar'
+    ).then((result) => {
+      if (result.isConfirmed) {
+        localStorage.removeItem('psicosync-login');
+        sessionStorage.removeItem('psicosync-login');
+        setIsAuthenticated(false);
+        showAlert('Sessão Encerrada', 'Você saiu do sistema com segurança.', 'success');
+      }
+    });
+  };
+
   useEffect(() => {
     const checkMobile = () => {
       const mobile = window.innerWidth < 992;
@@ -196,7 +210,6 @@ export default function PsicoSync() {
     return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
-  // Inicializar reconhecimento de voz
   useEffect(() => {
     if ('webkitSpeechRecognition' in window || 'SpeechRecognition' in window) {
       setVoiceSupported(true);
@@ -222,16 +235,17 @@ export default function PsicoSync() {
     }
   }, []);
 
-  // Carregar dados iniciais
   useEffect(() => {
-    carregarDados();
-    // Carregar meta salva
-    const savedGoal = localStorage.getItem('psico-monthly-goal');
-    if (savedGoal) {
-      setMonthlyGoal(parseInt(savedGoal));
-      setTempGoal(savedGoal);
+    if (isAuthenticated) {
+      carregarDados();
+     
+      const savedGoal = localStorage.getItem('psico-monthly-goal');
+      if (savedGoal) {
+        setMonthlyGoal(parseInt(savedGoal));
+        setTempGoal(savedGoal);
+      }
     }
-  }, []);
+  }, [isAuthenticated]);
 
   const carregarDados = async () => {
     try {
@@ -243,7 +257,6 @@ export default function PsicoSync() {
     }
   };
 
-  // Lógica do Cronômetro
   useEffect(() => {
     let timer: any;
     if (ativo && segundos > 0) {
@@ -255,7 +268,6 @@ export default function PsicoSync() {
     return () => clearInterval(timer);
   }, [ativo, segundos]);
 
-  // Focus no input quando editar meta
   useEffect(() => {
     if (editingGoal && goalInputRef.current) {
       goalInputRef.current.focus();
@@ -263,9 +275,6 @@ export default function PsicoSync() {
     }
   }, [editingGoal]);
 
-  // --- NOVAS FUNCIONALIDADES ---
-
-  // 1. FINALIZAR SESSÃO (ATUALIZADA)
   const finalizarSessao = async () => {
     if (!paciente.trim()) {
       showAlert('Atenção', 'Por favor, identifique o paciente.', 'warning');
@@ -311,7 +320,6 @@ export default function PsicoSync() {
     setEditingSession(null);
   };
 
-  // 2. EDITAR SESSÃO
   const editarSessao = async (sessao: Sessao) => {
     setEditingSession(sessao);
     setPaciente(sessao.paciente_nome);
@@ -349,7 +357,6 @@ export default function PsicoSync() {
     setLoading(false);
   };
 
-  // 3. EXCLUIR SESSÃO
   const excluirSessao = async (id: string, nome: string) => {
     const result = await showConfirm(
       'Excluir Sessão',
@@ -369,7 +376,6 @@ export default function PsicoSync() {
     }
   };
 
-  // 4. EXCLUIR MÚLTIPLAS SESSÕES
   const excluirMultiplasSessoes = async () => {
     if (selectedSessions.length === 0) return;
     
@@ -396,7 +402,6 @@ export default function PsicoSync() {
     }
   };
 
-  // 5. FILTRAR SESSÕES
   const filteredHistorico = historico.filter(sessao => {
     const matchesSearch = sessao.paciente_nome.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          sessao.anotacoes.toLowerCase().includes(searchTerm.toLowerCase());
@@ -407,7 +412,6 @@ export default function PsicoSync() {
     return matchesSearch && matchesStatus && matchesPriority;
   });
 
-  // 6. GRAVAÇÃO DE ÁUDIO
   const iniciarGravacaoAudio = () => {
     if (!voiceSupported) {
       showAlert('Não Suportado', 'Seu navegador não suporta gravação de áudio.', 'warning');
@@ -427,7 +431,6 @@ export default function PsicoSync() {
     }
   };
 
-  // 7. EXPORTAR DADOS
   const exportarDados = async (format: 'pdf' | 'csv' | 'json') => {
     const data = filteredHistorico;
     
@@ -464,7 +467,6 @@ export default function PsicoSync() {
     showAlert('Exportado', `Dados exportados com sucesso! (${data.length} sessões)`, 'success');
   };
 
-  // 8. MARCAÇÃO DE SESSÕES IMPORTANTES
   const toggleSessionSelection = (id: string) => {
     setSelectedSessions(prev => 
       prev.includes(id) 
@@ -473,7 +475,6 @@ export default function PsicoSync() {
     );
   };
 
-  // 9. ESTATÍSTICAS EM TEMPO REAL
   const calcularEstatisticas = () => {
     const totalSessoes = historico.length;
     const totalHoras = historico.reduce((acc, s) => acc + s.duracao, 0) / 3600;
@@ -483,7 +484,6 @@ export default function PsicoSync() {
       new Date(s.$createdAt).toDateString() === new Date().toDateString()
     ).length;
     
-    // Calcular sessões deste mês
     const now = new Date();
     const currentMonth = now.getMonth();
     const currentYear = now.getFullYear();
@@ -509,7 +509,6 @@ export default function PsicoSync() {
 
   const stats = calcularEstatisticas();
 
-  // 10. EDITAR META MENSAL
   const iniciarEdicaoMeta = () => {
     setTempGoal(monthlyGoal.toString());
     setEditingGoal(true);
@@ -533,15 +532,12 @@ export default function PsicoSync() {
     setTempGoal(monthlyGoal.toString());
   };
 
-  // Função para alternar modo escuro
   const toggleDarkMode = () => {
     const newDarkMode = !darkMode;
     setDarkMode(newDarkMode);
-    // Salvar preferência no localStorage
     localStorage.setItem('psico-dark-mode', newDarkMode.toString());
   };
 
-  // Carregar preferência do modo escuro
   useEffect(() => {
     const savedDarkMode = localStorage.getItem('psico-dark-mode');
     if (savedDarkMode !== null) {
@@ -549,8 +545,11 @@ export default function PsicoSync() {
     }
   }, []);
 
-  // Calcular progresso da barra (máximo 100%)
   const progressoBarra = Math.min(parseFloat(stats.progressoMensal), 100);
+
+  if (!isAuthenticated) {
+    return <LoginScreen onLoginSuccess={() => setIsAuthenticated(true)} darkMode={darkMode} />;
+  }
 
   return (
     <div style={{ 
@@ -577,7 +576,7 @@ export default function PsicoSync() {
           borderBottom: `1px solid ${darkMode ? '#2d2d2d' : '#e0e0e0'}`
         }}>
           <div className="d-flex align-items-center gap-3">
-            <Image src="/favicon.ico" alt="Logo" width={40} height={40} className="rounded-3 shadow-sm" style={{ objectFit: 'cover' }} />
+            <Image src="/logo.jpeg" alt="Logo" width={40} height={40} className="rounded-3 shadow-sm" style={{ objectFit: 'cover' }} />
             <div>
               <h6 className="m-0 fw-bold" style={{ color: COLORS.terracota }}>PsicoSync</h6>
               <small style={{ color: darkMode ? '#a0a0a0' : '#666666', fontSize: '0.7rem' }}>Dra. Tatiane Oliveira</small>
@@ -687,7 +686,7 @@ export default function PsicoSync() {
             <div className="text-center mb-5" style={{ padding: '0 0.5rem' }}>
               <div className="d-flex flex-column align-items-center justify-content-center">
                 <Image 
-                  src="/favicon.ico" 
+                  src="/logo.jpeg" 
                   alt="Logo" 
                   width={90} 
                   height={80} 
@@ -704,7 +703,7 @@ export default function PsicoSync() {
                   DRA. TATIANE OLIVEIRA
                 </div>
                 
-                {/* Toggle Dark Mode */}
+                {/* Dark Mode */}
                 <button 
                   onClick={toggleDarkMode}
                   className="btn btn-sm mb-3 d-flex align-items-center gap-2 justify-content-center"
@@ -787,6 +786,7 @@ export default function PsicoSync() {
               
               <button 
                 className="btn d-flex align-items-center gap-2 opacity-50 border-0 p-3 text-start w-100"
+                onClick={handleLogout}
                 style={{ color: darkMode ? '#a0a0a0' : COLORS.preto }}
               >
                 <LogOut size={18} />
@@ -852,7 +852,7 @@ export default function PsicoSync() {
                   justifyContent: 'space-between'
                 }}>
                   <div className="d-flex align-items-center gap-3">
-                    <Image src="/favicon.ico" alt="Logo" width={50} height={50} className="rounded-3 shadow-sm" style={{ objectFit: 'cover' }} />
+                    <Image src="/logo.jpeg" alt="Logo" width={50} height={50} className="rounded-3 shadow-sm" style={{ objectFit: 'cover' }} />
                     <div>
                       <h6 className="m-0 fw-bold" style={{ color: COLORS.terracota }}>PsicoSync</h6>
                       <small style={{ color: darkMode ? '#a0a0a0' : COLORS.preto, opacity: 0.6, fontSize: '0.75rem' }}>
@@ -936,6 +936,7 @@ export default function PsicoSync() {
                     borderTop: `1px solid ${darkMode ? '#2d2d2d' : COLORS.begeFundo}`
                   }}>
                     <button className="btn d-flex align-items-center justify-content-center gap-2 w-100 p-3 rounded-4"
+                            onClick={handleLogout}
                             style={{ 
                               backgroundColor: darkMode ? '#2d2d2d' : COLORS.begeFundo,
                               color: darkMode ? '#e0e0e0' : COLORS.preto,
@@ -951,7 +952,6 @@ export default function PsicoSync() {
           )}
         </AnimatePresence>
 
-        {/* --- QUICK ACTIONS PANEL --- */}
         <AnimatePresence>
           {showQuickActions && !isMobile && (
             <motion.div
@@ -1041,7 +1041,7 @@ export default function PsicoSync() {
         }}>
           <AnimatePresence mode="wait">
             
-            {/* ABA: DASHBOARD (ATUALIZADA COM META EDITÁVEL) */}
+            {/* DASHBOARD */}
             {activeTab === 'dashboard' && (
               <motion.div 
                 key="dashboard" 
@@ -1112,7 +1112,7 @@ export default function PsicoSync() {
                   />
                 </div>
 
-                {/* Progresso Mensal EDITÁVEL */}
+                {/* Progresso Mensal */}
                 <div className="card border-0 shadow-sm p-4 mb-4" style={{ 
                   backgroundColor: darkMode ? '#1e1e1e' : 'white',
                   borderRadius: '20px',
@@ -1332,7 +1332,7 @@ export default function PsicoSync() {
               </motion.div>
             )}
 
-            {/* ABA: SESSÃO ATIVA (COM BOTÕES CORRIGIDOS) */}
+            {/* ABA: SESSÃO ATIVA */}
             {activeTab === 'sessao' && (
               <motion.div 
                 key="sessao" 
@@ -1415,7 +1415,7 @@ export default function PsicoSync() {
                         </h1>
                       </div>
 
-                      {/* Timer Controls - BOTÕES COM ÍCONES ALINHADOS */}
+                      {/* Timer Controls */}
                       <div className="d-flex gap-2 mb-4">
                         <motion.button 
                           whileTap={{ scale: 0.95 }}
@@ -1578,7 +1578,7 @@ export default function PsicoSync() {
                         </span>
                       </div>
 
-                      {/* Voice Notes Section */}
+                      {/* audio */}
                       <div className="mb-3">
                         <div className="d-flex flex-column flex-md-row justify-content-between align-items-start align-items-md-center mb-2 gap-2">
                           <small className="fw-bold" style={{ 
@@ -1624,7 +1624,7 @@ export default function PsicoSync() {
                         ></textarea>
                       </div>
 
-                      {/* Main Notes */}
+                      {/* Notas */}
                       <textarea 
                         className="form-control border-0 rounded-4 p-3 p-md-4 flex-grow-1 shadow-inner" 
                         style={{ 
@@ -1641,7 +1641,7 @@ export default function PsicoSync() {
                         onChange={e => setAnotacoes(e.target.value)}
                       ></textarea>
 
-                      {/* Action Buttons - BOTÕES COM ÍCONES ALINHADOS */}
+                      {/* Botões */}
                       <div className="d-flex flex-column flex-md-row gap-3 mt-4">
                         <motion.button 
                           whileHover={{ y: -2 }}
@@ -1701,7 +1701,7 @@ export default function PsicoSync() {
               </motion.div>
             )}
 
-            {/* ABA: HISTÓRICO COMPLETO (RESPONSIVA) */}
+            {/* ABA: HISTÓRICO COMPLETO */}
             {activeTab === 'historico' && (
               <motion.div 
                 key="historico" 
@@ -1863,7 +1863,7 @@ export default function PsicoSync() {
                         }}
                       >
                         <div className="row align-items-center g-3">
-                          {/* Checkbox Selection - Apenas em telas grandes */}
+                          {/* Checkbox Selection*/}
                           <div className="col-1 d-none d-md-block">
                             <input 
                               type="checkbox" 
@@ -1879,7 +1879,7 @@ export default function PsicoSync() {
                             />
                           </div>
                           
-                          {/* Date */}
+                          {/* Data */}
                           <div className="col-12 col-md-2 mb-2 mb-md-0">
                             <div className="badge p-2 px-3 rounded-pill w-100" 
                                  style={{ 
@@ -1892,7 +1892,7 @@ export default function PsicoSync() {
                             </div>
                           </div>
                           
-                          {/* Patient Info */}
+                          {/*Info */}
                           <div className="col-12 col-md-3 mb-2 mb-md-0">
                             <h6 className="fw-bold m-0" style={{ color: darkMode ? '#e0e0e0' : COLORS.preto }}>
                               <User size={16} className="me-2" />
@@ -1912,7 +1912,7 @@ export default function PsicoSync() {
                             </small>
                           </div>
                           
-                          {/* Notes Preview - Escondido em mobile, visível em telas médias/grandes */}
+                          {/* Notes Preview */}
                           <div className="col-12 col-md-4 d-none d-md-block">
                             <p className="m-0" style={{ 
                               color: darkMode ? '#e0e0e0' : COLORS.preto,
@@ -1924,7 +1924,6 @@ export default function PsicoSync() {
                             </p>
                           </div>
                           
-                          {/* Actions */}
                           <div className="col-12 col-md-2">
                             <div className="d-flex gap-2 justify-content-start justify-content-md-end">
                               {/* Checkbox para mobile */}
@@ -1996,7 +1995,6 @@ export default function PsicoSync() {
   );
 }
 
-// --- COMPONENTES DE MENU ---
 
 function MenuButton({ active, onClick, icon, label, darkMode }: any) {
   return (
