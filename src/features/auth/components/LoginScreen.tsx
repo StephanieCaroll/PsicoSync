@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { loginUser } from '@/lib/auth';
+import styles from './auth.module.css';
 
 interface LoginScreenProps {
   onLogin: () => void;
@@ -14,6 +15,7 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
   const [rememberMe, setRememberMe] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isLeaving, setIsLeaving] = useState(false);
   const [emailError, setEmailError] = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [serverError, setServerError] = useState('');
@@ -98,63 +100,22 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
     }
   };
 
+  const handleNavigate = () => {
+    setIsLeaving(true);
+    setTimeout(() => {
+      onNavigateToRegister();
+    }, 350); 
+  };
+
   return (
-    <div style={{ fontFamily: "'Lora','Georgia',serif", height: '100vh', display: 'flex', overflow: 'hidden', background: '#FAF6EE' }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap');
-        *,*::before,*::after{box-sizing:border-box;}
-        @keyframes fadeUp{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:translateY(0)}}
-        @keyframes spin{to{transform:rotate(360deg)}}
-        @keyframes pulse-dot{0%,100%{opacity:1}50%{opacity:0.4}}
-        @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
-        .fu{animation:fadeUp 0.6s cubic-bezier(.22,1,.36,1) both}
-        .d1{animation-delay:.06s}.d2{animation-delay:.12s}.d3{animation-delay:.18s}
-        .d4{animation-delay:.24s}.d5{animation-delay:.30s}.d6{animation-delay:.36s}
-        .shake{animation:shake .35s ease both}
-
-        .lbl{font-family:'DM Sans',sans-serif;font-size:10px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;color:#9A7040;display:block;margin-bottom:5px}
-        .inp{width:100%;background:transparent;border:none;border-bottom:1.5px solid #D9C49A;padding:9px 36px 9px 0;font-family:'DM Sans',sans-serif;font-size:14px;color:#2D1F0A;outline:none;transition:border-color .2s}
-        .inp::placeholder{color:#C4A97A}
-        .inp.foc{border-bottom-color:#AD6D15}
-        .inp.err{border-bottom-color:#C45A35}
-        .errmsg{font-family:'DM Sans',sans-serif;font-size:11px;color:#C45A35;margin-top:4px;display:block}
-
-        .server-error{background:#FEF0EC;border:1px solid #F5C4B3;padding:10px 14px;display:flex;align-items:flex-start;gap:8px;margin-bottom:16px}
-        .server-error span{font-family:'DM Sans',sans-serif;font-size:12px;color:#993C1D;line-height:1.5}
-
-        .btn-main{width:100%;padding:13px 20px;background:#2D1F0A;color:#FAF6EE;border:none;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:background .2s,transform .12s;display:flex;align-items:center;justify-content:center;gap:8px}
-        .btn-main:hover:not(:disabled){background:#AD6D15}
-        .btn-main:active:not(:disabled){transform:scale(.99)}
-        .btn-main:disabled{opacity:.65;cursor:not-allowed}
-        .btn-ghost{width:100%;padding:12px 20px;background:transparent;color:#AD6D15;border:1.5px solid #D9C49A;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;cursor:pointer;transition:border-color .2s,background .2s}
-        .btn-ghost:hover{border-color:#AD6D15;background:#F5ECD8}
-
-        .social{flex:1;padding:9px 6px;background:white;border:1px solid #E8D9BE;font-family:'DM Sans',sans-serif;font-size:12px;font-weight:400;color:#5A3E20;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:7px;transition:border-color .2s,box-shadow .2s;letter-spacing:.01em;white-space:nowrap}
-        .social:hover{border-color:#AD6D15;box-shadow:0 2px 8px rgba(173,109,21,.1)}
-
-        .chkbox{width:15px;height:15px;border:1.5px solid #C4A97A;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:border-color .2s,background .2s}
-        .chkbox.on{border-color:#AD6D15;background:#AD6D15}
-        .spinner{width:14px;height:14px;border:2px solid rgba(250,246,238,.3);border-top-color:#FAF6EE;border-radius:50%;animation:spin .8s linear infinite}
-        .divline{flex:1;height:1px;background:#E8D9BE}
-
-        .rp-feature{display:flex;align-items:center;gap:10px;padding:10px 14px;border:1px solid rgba(255,255,255,.14);background:rgba(255,255,255,.05);transition:background .2s}
-        .rp-feature:hover{background:rgba(255,255,255,.1)}
-        .rp-icon{width:30px;height:30px;background:rgba(255,255,255,.1);display:flex;align-items:center;justify-content:center;flex-shrink:0}
-        .stat-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:rgba(255,255,255,.1)}
-        .stat-cell{background:#1A1008;padding:14px 8px;text-align:center}
-        .stat-n{font-family:'Lora',serif;font-size:22px;font-weight:600;color:white;display:block;line-height:1.1}
-        .stat-l{font-family:'DM Sans',sans-serif;font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.45);display:block;margin-top:2px}
-        @media(max-width:1023px){.right-panel{display:none!important}}
-      `}</style>
-
-      {/* LEFT PANEL */}
+    <div className={`${styles.container} ${isLeaving ? styles.fadeOut : ''}`} style={{ fontFamily: "'Lora','Georgia',serif", height: '100vh', display: 'flex', overflow: 'hidden', background: '#FAF6EE' }}>
+      
       <div style={{ flex:1, display:'flex', flexDirection:'column', justifyContent:'center', alignItems:'center', padding:'clamp(24px,4vw,56px)', position:'relative', overflow:'hidden' }}>
         <canvas ref={canvasRef} style={{ position:'absolute', inset:0, width:'100%', height:'100%', pointerEvents:'none' }} />
 
         <div style={{ position:'relative', width:'100%', maxWidth:380 }}>
 
-          {/* Logo */}
-          <div className={mounted ? 'fu' : ''} style={{ marginBottom:28 }}>
+          <div className={mounted ? styles.fu : ''} style={{ marginBottom:28 }}>
             <div style={{ display:'flex', alignItems:'center', gap:10, marginBottom:20 }}>
               <div style={{ width:38,height:38,background:'#2D1F0A',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0 }}>
                 <svg width="18" height="18" viewBox="0 0 24 24"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="rgba(239,187,85,0.85)"/></svg>
@@ -173,64 +134,62 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
             </p>
           </div>
 
-          {/* Social */}
-          <div className={mounted?'fu d1':''} style={{ display:'flex',gap:8,marginBottom:20 }}>
-            <button className="social">
+          <div className={mounted ? `${styles.fu} ${styles.d1}` : ''} style={{ display:'flex',gap:8,marginBottom:20 }}>
+            <button style={{flex:1,padding:'9px 6px',background:'white',border:'1px solid #E8D9BE',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:400,color:'#5A3E20',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7,letterSpacing:'.01em',whiteSpace:'nowrap'}}>
               <svg width="14" height="14" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
               Google
             </button>
-            <button className="social">
+            <button style={{flex:1,padding:'9px 6px',background:'white',border:'1px solid #E8D9BE',fontFamily:"'DM Sans',sans-serif",fontSize:12,fontWeight:400,color:'#5A3E20',cursor:'pointer',display:'flex',alignItems:'center',justifyContent:'center',gap:7,letterSpacing:'.01em',whiteSpace:'nowrap'}}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="#0A66C2"><path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/></svg>
               LinkedIn
             </button>
           </div>
 
-          {/* Divider */}
-          <div className={mounted?'fu d2':''} style={{ display:'flex',alignItems:'center',gap:12,marginBottom:20 }}>
-            <div className="divline" />
+          <div className={mounted ? `${styles.fu} ${styles.d2}` : ''} style={{ display:'flex',alignItems:'center',gap:12,marginBottom:20 }}>
+            <div className={styles.divline} />
             <span style={{ fontFamily:"'DM Sans',sans-serif",fontSize:10,color:'#C4A97A',letterSpacing:'.1em',textTransform:'uppercase',whiteSpace:'nowrap' }}>ou por e-mail</span>
-            <div className="divline" />
+            <div className={styles.divline} />
           </div>
 
-          {/* Server error */}
           {serverError && (
-            <div className={`server-error shake`}>
+            <div className={`${styles.serverError} ${styles.shake}`}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#993C1D" strokeWidth="2" style={{ flexShrink:0, marginTop:1 }}><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
               <span>{serverError}</span>
             </div>
           )}
 
-          {/* Form */}
           <form onSubmit={handleLogin} noValidate style={{ display:'flex',flexDirection:'column',gap:0 }}>
 
-            <div className={mounted?'fu d3':''} style={{ marginBottom:16 }}>
-              <label className="lbl">E-mail profissional</label>
+            <div className={mounted ? `${styles.fu} ${styles.d3}` : ''} style={{ marginBottom:16 }}>
+              <label className={styles.lbl}>E-mail profissional</label>
               <div style={{ position:'relative' }}>
                 <input
                   type="email" autoComplete="email"
-                  className={`inp${focusedField==='email'?' foc':''}${emailError?' err':''}`}
+                  className={`${styles.inp} ${focusedField==='email' ? styles.foc : ''} ${emailError ? styles.err : ''}`}
                   placeholder="voce@clinica.com.br"
                   value={email}
                   onChange={e=>{setEmail(e.target.value);setEmailError(validateEmail(e.target.value));setServerError('');}}
                   onFocus={()=>setFocusedField('email')}
                   onBlur={()=>setFocusedField(null)}
+                  style={{ paddingRight: 36 }}
                 />
                 <svg style={{ position:'absolute',right:0,top:'50%',transform:'translateY(-50%)',opacity:.35,pointerEvents:'none' }} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#AD6D15" strokeWidth="1.5"><rect x="2" y="4" width="20" height="16" rx="2"/><polyline points="2,4 12,13 22,4"/></svg>
               </div>
-              {emailError && <span className="errmsg">{emailError}</span>}
+              {emailError && <span className={styles.errmsg}>{emailError}</span>}
             </div>
 
-            <div className={mounted?'fu d4':''} style={{ marginBottom:14 }}>
-              <label className="lbl">Senha</label>
+            <div className={mounted ? `${styles.fu} ${styles.d4}` : ''} style={{ marginBottom:14 }}>
+              <label className={styles.lbl}>Senha</label>
               <div style={{ position:'relative' }}>
                 <input
                   type={showPassword?'text':'password'} autoComplete="current-password"
-                  className={`inp${focusedField==='password'?' foc':''}${passwordError?' err':''}`}
+                  className={`${styles.inp} ${focusedField==='password' ? styles.foc : ''} ${passwordError ? styles.err : ''}`}
                   placeholder="••••••••"
                   value={password}
                   onChange={e=>{setPassword(e.target.value);setPasswordError(validatePassword(e.target.value));setServerError('');}}
                   onFocus={()=>setFocusedField('password')}
                   onBlur={()=>setFocusedField(null)}
+                  style={{ paddingRight: 36 }}
                 />
                 <button type="button" onClick={()=>setShowPassword(v=>!v)}
                   style={{ position:'absolute',right:0,top:'50%',transform:'translateY(-50%)',background:'none',border:'none',cursor:'pointer',padding:2,color:'#C4A97A',display:'flex',alignItems:'center' }}>
@@ -240,12 +199,12 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
                   }
                 </button>
               </div>
-              {passwordError && <span className="errmsg">{passwordError}</span>}
+              {passwordError && <span className={styles.errmsg}>{passwordError}</span>}
             </div>
 
-            <div className={mounted?'fu d5':''} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
+            <div className={mounted ? `${styles.fu} ${styles.d5}` : ''} style={{ display:'flex',alignItems:'center',justifyContent:'space-between',marginBottom:20 }}>
               <label style={{ display:'flex',alignItems:'center',gap:7,cursor:'pointer' }}>
-                <div className={`chkbox${rememberMe?' on':''}`} onClick={()=>setRememberMe(v=>!v)}>
+                <div className={`${styles.chkbox} ${rememberMe ? styles.on : ''}`} onClick={()=>setRememberMe(v=>!v)}>
                   {rememberMe && <svg width="9" height="9" viewBox="0 0 12 12" fill="none"><polyline points="2,6 5,9 10,3" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
                 </div>
                 <span onClick={()=>setRememberMe(v=>!v)} style={{ fontFamily:"'DM Sans',sans-serif",fontSize:12,color:'#5A3E20',userSelect:'none' }}>Lembrar de mim</span>
@@ -257,11 +216,11 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
               </a>
             </div>
 
-            <div className={mounted?'fu d6':''} style={{ display:'flex',flexDirection:'column',gap:10 }}>
-              <button type="submit" className="btn-main" disabled={isLoading}>
-                {isLoading ? <><span className="spinner"/>Entrando...</> : 'Acessar conta'}
+            <div className={mounted ? `${styles.fu} ${styles.d6}` : ''} style={{ display:'flex',flexDirection:'column',gap:10 }}>
+              <button type="submit" className={styles.btnMain} disabled={isLoading}>
+                {isLoading ? <><span className={styles.spinner}/>Entrando...</> : 'Acessar conta'}
               </button>
-              <button type="button" className="btn-ghost" onClick={onNavigateToRegister}>
+              <button type="button" className={styles.btnGhost} onClick={handleNavigate}>
                 Criar nova conta
               </button>
             </div>
@@ -276,7 +235,7 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
         </div>
       </div>
 
-      <div className="right-panel" style={{ width:'50%',height:'100vh',background:'#1A1008',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'44px 48px' }}>
+      <div className={styles.rightPanel} style={{ width:'50%',height:'100vh',background:'#1A1008',position:'relative',overflow:'hidden',display:'flex',flexDirection:'column',justifyContent:'space-between',padding:'44px 48px' }}>
         <svg style={{ position:'absolute',inset:0,width:'100%',height:'100%' }} viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice" fill="none">
           <circle cx="600" cy="0" r="420" stroke="rgba(239,187,85,0.07)" strokeWidth="1"/>
           <circle cx="600" cy="0" r="320" stroke="rgba(239,187,85,0.06)" strokeWidth="1"/>
@@ -321,9 +280,9 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
             { icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(239,187,85,.8)" strokeWidth="1.5"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>, text:'Prontuário digital seguro e criptografado' },
             { icon:<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="rgba(239,187,85,.8)" strokeWidth="1.5"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>, text:'Relatórios e insights automatizados com IA' },
           ].map((f,i)=>(
-            <div key={i} className="rp-feature">
-              <div className="rp-icon">{f.icon}</div>
-              <span style={{ fontFamily:"'DM Sans',sans-serif",fontSize:12,color:'rgba(255,255,255,.7)' }}>{f.text}</span>
+            <div key={i} className={styles.rpStep}>
+              <div style={{width:30,height:30,background:'rgba(255,255,255,.1)',display:'flex',alignItems:'center',justifyContent:'center',flexShrink:0}}>{f.icon}</div>
+              <span style={{ fontFamily:"'DM Sans',sans-serif",fontSize:12,color:'rgba(255,255,255,.7)', marginTop: 6 }}>{f.text}</span>
             </div>
           ))}
         </div>
@@ -342,11 +301,11 @@ export default function LoginScreen({ onLogin, onNavigateToRegister }: LoginScre
               Dra. Ana Beatriz — Psicóloga Clínica, SP
             </p>
           </div>
-          <div className="stat-grid">
+          <div className={styles.statGrid}>
             {[{n:'500+',l:'Profissionais'},{n:'98%',l:'Satisfação'},{n:'24/7',l:'Suporte'}].map((s,i)=>(
-              <div key={i} className="stat-cell">
-                <span className="stat-n">{s.n}</span>
-                <span className="stat-l">{s.l}</span>
+              <div key={i} className={styles.statCell}>
+                <span className={styles.statN}>{s.n}</span>
+                <span className={styles.statL}>{s.l}</span>
               </div>
             ))}
           </div>
