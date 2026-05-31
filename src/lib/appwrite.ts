@@ -6,14 +6,15 @@ const endpoint = process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT;
 const projectId = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
 
 if (endpoint && projectId) {
-  client
-    .setEndpoint(endpoint)
-    .setProject(projectId);
+  client.setEndpoint(endpoint).setProject(projectId);
 } else {
-  console.warn("Variáveis do Appwrite não encontradas. Verifique seu arquivo .env.local");
+  console.warn("Variáveis do Appwrite não encontradas.");
 }
 
 export const account = new Account(client);
 export const databases = new Databases(client);
+
+export const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID!;
+export const PATIENTS_COLLECTION_ID = process.env.NEXT_PUBLIC_APPWRITE_PATIENTS_COLLECTION_ID!;
 
 export default client;
