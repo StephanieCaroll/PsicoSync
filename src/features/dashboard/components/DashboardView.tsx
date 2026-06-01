@@ -1,12 +1,471 @@
+
 'use client';
 
-import React from 'react';
+import React, { useState, useMemo } from 'react';
 import Sidebar, { MenuCategory } from '@/components/Sidebar';
 import PatientsTab from '@/features/patients/components/PatientsTab';
-import { PatientModal, EvolutionModal } from '@/features/patients/components/EvolutionModal';
+import EvolutionModal, { ClinicalNote } from '@/features/patients/components/EvolutionModal';
 import { useDashboard, Patient } from '@/features/dashboard/hooks/useDashboard';
 import type { Patient as AppwritePatient } from '@/features/patients/usePatients';
 import styles from './DashboardView.module.css';
+
+/* ── PatientModal (inline) ── */
+interface PatientModalProps {
+  patient: Patient;
+  notes: ClinicalNote[];
+  onClose: () => void;
+  onNewNote: () => void;
+  onEditNote: (note: ClinicalNote) => void;
+  onDeleteNote: (id: string) => void;
+}
+
+function PatientModal({ patient, notes, onClose, onNewNote, onEditNote, onDeleteNote }: PatientModalProps) {
+  const patientNotes = notes.filter(n => n.patientId === patient.id);
+  return (
+    <div
+      onClick={onClose}
+      style={{
+        position: 'fixed', inset: 0, background: 'rgba(26,16,8,0.6)',
+        backdropFilter: 'blur(5px)', zIndex: 999998,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
+        boxSizing: 'border-box',
+      }}
+    >
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#fff', borderRadius: 20, width: '100%', maxWidth: 680,
+          maxHeight: 'calc(100vh - 32px)', display: 'flex', flexDirection: 'column',
+          boxShadow: '0 24px 64px rgba(0,0,0,0.25)', overflow: 'hidden',
+        }}
+      >
+        <div style={{ background: '#1A1008', padding: '22px 28px', display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div style={{
+            width: 44, height: 44, borderRadius: 12,
+            background: 'rgba(239,187,85,0.15)', border: '1px solid rgba(239,187,85,0.3)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+          }}>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EFBB55" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="9" cy="7" r="4" />
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <h2 style={{ fontFamily: 'Lora, serif', fontSize: 20, fontWeight: 600, color: '#fff', margin: 0, lineHeight: 1.2 }}>
+              {patient.name}
+            </h2>
+            <span style={{ fontSize: 12, color: 'rgba(239,187,85,0.65)' }}>
+              {patient.therapyType || 'Terapia'} · {patient.status === 'active' ? 'Ativo' : patient.status === 'waiting' ? 'Aguardando' : 'Inativo'}
+            </span>
+          </div>
+          <button onClick={onClose} style={{
+            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
+            color: 'rgba(255,255,255,0.5)', width: 32, height: 32, borderRadius: 8,
+            cursor: 'pointer', fontSize: 16, display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>✕</button>
+        </div>
+        <div style={{ padding: '16px 28px', borderBottom: '1px solid #F0E8D8', display: 'flex', gap: 24, flexWrap: 'wrap' }}>
+          {patient.email && <span style={{ fontSize: 12, color: '#9A7040' }}>📧 {patient.email}</span>}
+          {patient.phone && <span style={{ fontSize: 12, color: '#9A7040' }}>📱 {patient.phone}</span>}
+          {patient.nextSession && <span style={{ fontSize: 12, color: '#9A7040' }}>📅 Próxima: {patient.nextSession}</span>}
+          {patient.pendingAmount != null && patient.pendingAmount > 0 && (
+            <span style={{ fontSize: 12, color: '#C45A35', fontWeight: 600 }}>
+              💰 Pendente: R$ {patient.pendingAmount.toLocaleString('pt-BR')}
+            </span>
+          )}
+        </div>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '16px 28px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <h3 style={{ fontFamily: 'Lora, serif', fontSize: 16, fontWeight: 600, color: '#2D1F0A', margin: 0 }}>
+              Evoluções ({patientNotes.length})
+            </h3>
+            <button onClick={onNewNote} style={{
+              background: '#1A1008', color: '#EFBB55', border: 'none',
+              padding: '8px 16px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+              letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
+            }}>+ Nova Evolução</button>
+          </div>
+          {patientNotes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: '#9A7040', fontSize: 13 }}>
+              Nenhuma evolução registrada ainda.
+            </div>
+          ) : (
+            patientNotes.map(note => (
+              <div key={note.id} style={{ background: '#FAF6EE', border: '1px solid #EEE2C8', borderRadius: 12, padding: 14, marginBottom: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8, marginBottom: 8 }}>
+                  <div>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: '#5A3E20' }}>
+                      {new Date(note.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                      {note.sessionNumber ? ` · Sessão #${note.sessionNumber}` : ''}
+                    </span>
+                    {note.mood && (
+                      <span style={{ marginLeft: 8, fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F5ECD8', color: '#AD6D15' }}>
+                        {note.mood}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    <button onClick={() => onEditNote(note)} style={{ padding: '4px 10px', fontSize: 10, fontWeight: 600, background: '#fff', border: '1px solid #D9C49A', color: '#AD6D15', borderRadius: 6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Editar</button>
+                    <button onClick={() => onDeleteNote(note.id)} style={{ padding: '4px 10px', fontSize: 10, fontWeight: 600, background: '#FEF0EC', border: '1px solid #F0C0A8', color: '#C45A35', borderRadius: 6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Excluir</button>
+                  </div>
+                </div>
+                <p style={{ fontSize: 13, lineHeight: 1.65, color: '#5A3E20', margin: 0 }}>
+                  {note.content.length > 200 ? note.content.substring(0, 200) + '…' : note.content}
+                </p>
+              </div>
+            ))
+          )}
+        </div>
+        <div style={{ padding: '14px 28px', borderTop: '1px solid #F0E8D8', background: '#FDFAF5', display: 'flex', justifyContent: 'flex-end' }}>
+          <button onClick={onClose} style={{ background: 'none', border: '1.5px solid #D9C49A', color: '#9A7040', padding: '10px 20px', borderRadius: 8, fontSize: 12, fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', cursor: 'pointer' }}>Fechar</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── EvolucaoTab (componente separado para a aba de evoluções) ── */
+interface EvolucaoTabProps {
+  patients: Patient[];
+  notes: ClinicalNote[];
+  notesLoading: boolean;
+  onNewNote: (patient: Patient) => void;
+  onEditNote: (note: ClinicalNote) => void;
+  onDeleteNote: (id: string) => void;
+}
+
+function EvolucaoTab({ patients, notes, notesLoading, onNewNote, onEditNote, onDeleteNote }: EvolucaoTabProps) {
+  const [search, setSearch] = useState('');
+  const [selectedPatientId, setSelectedPatientId] = useState<string | null>(null);
+  const [noteSearch, setNoteSearch] = useState('');
+  const [moodFilter, setMoodFilter] = useState<string>('');
+
+  /* Pacientes que têm ao menos 1 nota OU que aparecem na busca */
+  const filteredPatients = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return patients.filter(p =>
+      p.name.toLowerCase().includes(q) ||
+      (p.therapyType ?? '').toLowerCase().includes(q)
+    );
+  }, [patients, search]);
+
+  const selectedPatient = patients.find(p => p.id === selectedPatientId) ?? null;
+
+  /* Notas do paciente selecionado, com filtros adicionais */
+  const patientNotes = useMemo(() => {
+    if (!selectedPatientId) return [];
+    let list = notes.filter(n => n.patientId === selectedPatientId);
+    if (noteSearch.trim()) {
+      const q = noteSearch.toLowerCase();
+      list = list.filter(n =>
+        n.content.toLowerCase().includes(q) ||
+        n.mood?.toLowerCase().includes(q) ||
+        n.topics?.some(t => t.toLowerCase().includes(q)) ||
+        n.nextSteps?.toLowerCase().includes(q)
+      );
+    }
+    if (moodFilter) list = list.filter(n => n.mood === moodFilter);
+    return list.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [notes, selectedPatientId, noteSearch, moodFilter]);
+
+  const allMoods = useMemo(() => {
+    if (!selectedPatientId) return [];
+    const moods = notes.filter(n => n.patientId === selectedPatientId && n.mood).map(n => n.mood);
+    return [...new Set(moods)];
+  }, [notes, selectedPatientId]);
+
+  const notesCountFor = (patientId: string) => notes.filter(n => n.patientId === patientId).length;
+  const lastNoteFor = (patientId: string) => {
+    const pNotes = notes.filter(n => n.patientId === patientId).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    return pNotes[0]?.date ?? null;
+  };
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: '300px 1fr', gap: 20, height: 'calc(100vh - 160px)', minHeight: 500 }}>
+
+      {/* ── Painel Esquerdo: Lista de Pacientes ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden' }}>
+        {/* Barra de busca */}
+        <div style={{ position: 'relative' }}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A7040" strokeWidth="2"
+            style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Buscar paciente…"
+            style={{
+              width: '100%', padding: '10px 12px 10px 36px', borderRadius: 10,
+              border: '1.5px solid #E8D9BE', background: '#FDFAF5',
+              fontFamily: 'DM Sans, sans-serif', fontSize: 13, color: '#2D1F0A',
+              outline: 'none', boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {/* Contador */}
+        <div style={{ fontSize: 11, color: '#9A7040', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', paddingLeft: 4 }}>
+          {filteredPatients.length} paciente{filteredPatients.length !== 1 ? 's' : ''}
+        </div>
+
+        {/* Lista */}
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {filteredPatients.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '32px 0', color: '#9A7040', fontSize: 13 }}>
+              Nenhum paciente encontrado.
+            </div>
+          ) : (
+            filteredPatients.map(p => {
+              const count = notesCountFor(p.id);
+              const last  = lastNoteFor(p.id);
+              const isSelected = selectedPatientId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => { setSelectedPatientId(p.id); setNoteSearch(''); setMoodFilter(''); }}
+                  style={{
+                    width: '100%', textAlign: 'left', padding: '12px 14px',
+                    borderRadius: 12, cursor: 'pointer', transition: 'all 0.15s',
+                    border: isSelected ? '1.5px solid #AD6D15' : '1.5px solid #EEE2C8',
+                    background: isSelected ? '#FDF5E6' : '#fff',
+                    boxShadow: isSelected ? '0 2px 8px rgba(173,109,21,0.1)' : 'none',
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: 13, color: isSelected ? '#AD6D15' : '#2D1F0A', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                        {p.name}
+                      </div>
+                      <div style={{ fontSize: 11, color: '#9A7040', marginTop: 2 }}>
+                        {p.therapyType || 'Terapia'}
+                      </div>
+                    </div>
+                    <span style={{
+                      fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20,
+                      background: count > 0 ? (isSelected ? '#AD6D15' : '#F5ECD8') : '#F0EDE8',
+                      color: count > 0 ? (isSelected ? '#fff' : '#AD6D15') : '#C0B090',
+                      whiteSpace: 'nowrap', flexShrink: 0,
+                    }}>
+                      {count} {count === 1 ? 'nota' : 'notas'}
+                    </span>
+                  </div>
+                  {last && (
+                    <div style={{ fontSize: 10, color: '#B09060', marginTop: 6 }}>
+                      Última: {new Date(last).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                    </div>
+                  )}
+                  {count === 0 && (
+                    <div style={{ fontSize: 10, color: '#C0B090', marginTop: 6, fontStyle: 'italic' }}>
+                      Sem evoluções ainda
+                    </div>
+                  )}
+                </button>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── Painel Direito: Evoluções do Paciente ── */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0, overflow: 'hidden', background: '#fff', borderRadius: 16, border: '1.5px solid #EEE2C8' }}>
+        {!selectedPatient ? (
+          /* Empty state */
+          <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, color: '#9A7040', gap: 12 }}>
+            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#D9C49A" strokeWidth="1.2" strokeLinecap="round">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+            </svg>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: 15, fontWeight: 600, color: '#5A3E20', fontFamily: 'Lora, serif' }}>Selecione um paciente</div>
+              <div style={{ fontSize: 13, marginTop: 4 }}>Escolha um paciente na lista ao lado para ver suas evoluções clínicas.</div>
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Header do painel direito */}
+            <div style={{ padding: '16px 20px', borderBottom: '1px solid #F0E8D8', background: '#FDFAF5', borderRadius: '14px 14px 0 0' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div>
+                  <h3 style={{ fontFamily: 'Lora, serif', fontSize: 17, fontWeight: 600, color: '#2D1F0A', margin: 0 }}>
+                    {selectedPatient.name}
+                  </h3>
+                  <div style={{ fontSize: 12, color: '#9A7040', marginTop: 2 }}>
+                    {selectedPatient.therapyType || 'Terapia'} · {patientNotes.length} evolução{patientNotes.length !== 1 ? 'ões' : ''} encontrada{patientNotes.length !== 1 ? 's' : ''}
+                  </div>
+                </div>
+                <button
+                  onClick={() => onNewNote(selectedPatient)}
+                  style={{
+                    background: '#1A1008', color: '#EFBB55', border: 'none',
+                    padding: '9px 18px', borderRadius: 8, fontSize: 11, fontWeight: 700,
+                    letterSpacing: '0.06em', textTransform: 'uppercase', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', gap: 6,
+                  }}
+                >
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                  Nova Evolução
+                </button>
+              </div>
+
+              {/* Filtros */}
+              <div style={{ display: 'flex', gap: 10, marginTop: 12, flexWrap: 'wrap' }}>
+                {/* Busca nas notas */}
+                <div style={{ position: 'relative', flex: 1, minWidth: 180 }}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#9A7040" strokeWidth="2"
+                    style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', pointerEvents: 'none' }}>
+                    <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <input
+                    value={noteSearch}
+                    onChange={e => setNoteSearch(e.target.value)}
+                    placeholder="Buscar em evoluções, tópicos…"
+                    style={{
+                      width: '100%', padding: '8px 10px 8px 30px', borderRadius: 8,
+                      border: '1.5px solid #E8D9BE', background: '#fff',
+                      fontFamily: 'DM Sans, sans-serif', fontSize: 12, color: '#2D1F0A',
+                      outline: 'none', boxSizing: 'border-box',
+                    }}
+                  />
+                </div>
+
+                {/* Filtro por humor */}
+                {allMoods.length > 0 && (
+                  <select
+                    value={moodFilter}
+                    onChange={e => setMoodFilter(e.target.value)}
+                    style={{
+                      padding: '8px 12px', borderRadius: 8, border: '1.5px solid #E8D9BE',
+                      background: '#fff', fontFamily: 'DM Sans, sans-serif', fontSize: 12,
+                      color: '#5A3E20', outline: 'none', cursor: 'pointer',
+                    }}
+                  >
+                    <option value="">Todos os humores</option>
+                    {allMoods.map(m => (
+                      <option key={m} value={m}>{m}</option>
+                    ))}
+                  </select>
+                )}
+
+                {(noteSearch || moodFilter) && (
+                  <button
+                    onClick={() => { setNoteSearch(''); setMoodFilter(''); }}
+                    style={{ padding: '8px 12px', borderRadius: 8, border: '1.5px solid #F0C0A8', background: '#FEF0EC', color: '#C45A35', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                  >
+                    Limpar filtros
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Lista de notas */}
+            <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {notesLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#9A7040', fontSize: 13 }}>Carregando…</div>
+              ) : patientNotes.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#9A7040' }}>
+                  <div style={{ fontSize: 28, marginBottom: 8 }}>📋</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: '#5A3E20' }}>
+                    {noteSearch || moodFilter ? 'Nenhuma evolução encontrada para esse filtro' : 'Nenhuma evolução ainda'}
+                  </div>
+                  {!noteSearch && !moodFilter && (
+                    <div style={{ fontSize: 12, marginTop: 6 }}>
+                      Clique em "Nova Evolução" para registrar a primeira sessão.
+                    </div>
+                  )}
+                </div>
+              ) : (
+                patientNotes.map((note, idx) => (
+                  <div
+                    key={note.id}
+                    style={{
+                      background: '#FAF6EE', border: '1px solid #EEE2C8',
+                      borderRadius: 12, padding: 16, transition: 'box-shadow 0.15s',
+                    }}
+                  >
+                    {/* Cabeçalho da nota */}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 10, marginBottom: 10 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                        {/* Número da sessão */}
+                        {note.sessionNumber && (
+                          <span style={{
+                            width: 28, height: 28, borderRadius: 8, background: '#1A1008',
+                            color: '#EFBB55', fontSize: 11, fontWeight: 700,
+                            display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                          }}>
+                            #{note.sessionNumber}
+                          </span>
+                        )}
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#2D1F0A' }}>
+                            {new Date(note.date).toLocaleDateString('pt-BR', { timeZone: 'UTC', weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, marginTop: 4, flexWrap: 'wrap', alignItems: 'center' }}>
+                            {note.mood && (
+                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F5ECD8', color: '#AD6D15', textTransform: 'uppercase' }}>
+                                {note.mood}
+                              </span>
+                            )}
+                            {note.isTelehealth && (
+                              <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 6, background: '#E8F4EC', color: '#2E9E5B' }}>
+                                🖥 Online
+                              </span>
+                            )}
+                            {note.duration && (
+                              <span style={{ fontSize: 10, color: '#9A7040' }}>⏱ {note.duration} min</span>
+                            )}
+                            {note.topics?.slice(0, 3).map(t => (
+                              <span key={t} style={{ fontSize: 11, color: '#9A7040' }}>#{t}</span>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                        <button
+                          onClick={() => onEditNote(note)}
+                          style={{ padding: '5px 10px', fontSize: 10, fontWeight: 600, background: '#fff', border: '1px solid #D9C49A', color: '#AD6D15', borderRadius: 6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                        >✏ Editar</button>
+                        <button
+                          onClick={() => onDeleteNote(note.id)}
+                          style={{ padding: '5px 10px', fontSize: 10, fontWeight: 600, background: '#FEF0EC', border: '1px solid #F0C0A8', color: '#C45A35', borderRadius: 6, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}
+                        >🗑</button>
+                      </div>
+                    </div>
+
+                    {/* Conteúdo da nota */}
+                    <p style={{ fontSize: 13, lineHeight: 1.7, color: '#5A3E20', margin: 0, whiteSpace: 'pre-wrap' }}>
+                      {note.content}
+                    </p>
+
+                    {/* Intervenção */}
+                    {note.intervention && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #E8D9BE' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#9A7040', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                          🛠 Intervenções
+                        </div>
+                        <p style={{ fontSize: 12, color: '#7A5020', margin: 0, lineHeight: 1.6 }}>{note.intervention}</p>
+                      </div>
+                    )}
+
+                    {/* Próximos passos */}
+                    {note.nextSteps && (
+                      <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #E8D9BE' }}>
+                        <div style={{ fontSize: 10, fontWeight: 700, color: '#9A7040', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                          🎯 Próximos passos
+                        </div>
+                        <p style={{ fontSize: 12, color: '#7A5020', margin: 0, lineHeight: 1.6 }}>{note.nextSteps}</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ── Menu definition ── */
 const MENU_CATEGORIES: MenuCategory[] = [
@@ -109,7 +568,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
     dash.setMobileMenuOpen(false);
   };
 
-  const financialTotalMonth = 5250; // Replace with real Appwrite query
+  const financialTotalMonth = 5250;
   const financialReceived   = financialTotalMonth - dash.pendingTotal;
   const recoveryRate        = financialTotalMonth > 0
     ? ((financialReceived / financialTotalMonth) * 100).toFixed(1)
@@ -123,7 +582,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
       {/* ── Modals ── */}
       {dash.showPatientModal && dash.selectedPatient && (
         <PatientModal
-          patient={dash.selectedPatient as any}
+          patient={dash.selectedPatient}
           notes={dash.notes}
           onClose={() => dash.setShowPatientModal(false)}
           onNewNote={() => dash.openNewNoteModal(dash.selectedPatient!)}
@@ -134,10 +593,11 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
 
       {dash.showNoteModal && dash.selectedPatient && (
         <EvolutionModal
-          patient={dash.selectedPatient as any}
-          editingNote={dash.editingNote}
+          patientId={dash.selectedPatient.id}
+          patientName={dash.selectedPatient.name}
+          note={dash.editingNote}
           onClose={dash.closeModals}
-          onSave={dash.handleSaveNote}
+          onSave={(note) => dash.handleSaveNote({ id: dash.editingNote?.id ?? '', ...note })}
         />
       )}
 
@@ -189,12 +649,12 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
               aria-label="Abrir menu"
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="3" y1="6"  x2="21" y2="6"  />
+                <line x1="3" y1="6" x2="21" y2="6" />
                 <line x1="3" y1="12" x2="21" y2="12" />
                 <line x1="3" y1="18" x2="21" y2="18" />
               </svg>
             </button>
-            <div>
+            <div className={styles.headerTitleWrapper}>
               <h2 className={styles.headerTitle}>
                 {dash.activeTab === 'dashboard' ? 'Painel de Controle' : activeTabLabel}
               </h2>
@@ -203,7 +663,6 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
           </div>
 
           <div className={styles.headerActions}>
-            {/* Bell */}
             <div className={styles.notifBell}>
               <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A3E20" strokeWidth="1.8">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
@@ -211,14 +670,10 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
               </svg>
               {dash.notifications.length > 0 && <span className={styles.notifDot} />}
             </div>
-
-            <button
-              className={styles.btnPrimary}
-              onClick={() => handleTabChange('pacientes')}
-            >
+            <button className={styles.btnPrimary} onClick={() => handleTabChange('pacientes')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5"  y1="12" x2="19" y2="12" />
+                <line x1="5" y1="12" x2="19" y2="12" />
               </svg>
               <span>Novo Paciente</span>
             </button>
@@ -232,18 +687,14 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
           {dash.activeTab === 'dashboard' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
 
-              {/* KPIs */}
               <div className={styles.kpiGrid}>
-                {/* Consultas hoje */}
                 <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay1}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <span className={styles.kpiTitle}>Consultas Hoje</span>
                     <div className={styles.kpiIcon} style={{ color: '#AD6D15', background: '#F5ECD8' }}>
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                         <rect x="3" y="4" width="18" height="18" rx="2" />
-                        <line x1="16" y1="2" x2="16" y2="6" />
-                        <line x1="8"  y1="2" x2="8"  y2="6" />
-                        <line x1="3"  y1="10" x2="21" y2="10" />
+                        <line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                       </svg>
                     </div>
                   </div>
@@ -251,7 +702,6 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                   <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>confirmadas</div>
                 </div>
 
-                {/* Pacientes */}
                 <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay2}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <span className={styles.kpiTitle}>Pacientes Ativos</span>
@@ -264,16 +714,11 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                     </div>
                   </div>
                   <div className={styles.kpiValue}>
-                    {dash.isLoadingPatients ? (
-                      <span className={styles.loadingPulse}>…</span>
-                    ) : dash.patients.length}
+                    {dash.isLoadingPatients ? <span className={styles.loadingPulse}>…</span> : dash.patients.length}
                   </div>
-                  <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>
-                    {dash.activePatients} ativos
-                  </div>
+                  <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>{dash.activePatients} ativos</div>
                 </div>
 
-                {/* Faturamento */}
                 <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay3}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <span className={styles.kpiTitle}>Faturamento Mensal</span>
@@ -285,12 +730,9 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                     </div>
                   </div>
                   <div className={styles.kpiValue}>R$ {financialTotalMonth.toLocaleString('pt-BR')}</div>
-                  <div className={styles.kpiTitle} style={{ color: '#C45A35' }}>
-                    R$ {dash.pendingTotal.toLocaleString('pt-BR')} pendente
-                  </div>
+                  <div className={styles.kpiTitle} style={{ color: '#C45A35' }}>R$ {dash.pendingTotal.toLocaleString('pt-BR')} pendente</div>
                 </div>
 
-                {/* Taxa */}
                 <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay4}`}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <span className={styles.kpiTitle}>Taxa de Recebimento</span>
@@ -307,10 +749,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                 </div>
               </div>
 
-              {/* Evoluções Recentes + Agenda — two-column on desktop */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-
-                {/* Próximas sessões */}
                 <div className={styles.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                     <h3 className={styles.cardTitle} style={{ margin: 0 }}>Agenda de Hoje</h3>
@@ -320,15 +759,10 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                     <div key={apt.id} className={styles.sessionItem}>
                       <div className={styles.sessionLeft}>
                         <div className={styles.sessionTime}>{apt.time}</div>
-                        <div
-                          className={styles.sessionBar}
-                          style={{ background: apt.type === 'online' ? '#2E9E5B' : '#AD6D15' }}
-                        />
+                        <div className={styles.sessionBar} style={{ background: apt.type === 'online' ? '#2E9E5B' : '#AD6D15' }} />
                         <div>
                           <div className={styles.sessionName}>{apt.patientName}</div>
-                          <div className={styles.sessionType}>
-                            {apt.type === 'online' ? '🖥 Teleconsulta' : '🏥 Presencial'}
-                          </div>
+                          <div className={styles.sessionType}>{apt.type === 'online' ? '🖥 Teleconsulta' : '🏥 Presencial'}</div>
                         </div>
                       </div>
                       <button
@@ -338,14 +772,11 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                           const p = dash.patients.find(x => x.id === apt.patientId);
                           if (p) dash.openNewNoteModal(p);
                         }}
-                      >
-                        + Evolução
-                      </button>
+                      >+ Evolução</button>
                     </div>
                   ))}
                 </div>
 
-                {/* Evoluções recentes */}
                 <div className={styles.card}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                     <h3 className={styles.cardTitle} style={{ margin: 0 }}>Evoluções Recentes</h3>
@@ -359,28 +790,15 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                     </div>
                   ) : (
                     dash.notes.slice(0, 5).map(note => (
-                      <div
-                        key={note.id}
-                        style={{
-                          display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
-                          padding: '10px 0', borderBottom: '1px solid #FAF6EE', gap: 8,
-                        }}
-                      >
+                      <div key={note.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', padding: '10px 0', borderBottom: '1px solid #FAF6EE', gap: 8 }}>
                         <div>
-                          <div style={{ fontSize: 13, fontWeight: 600, color: '#2D1F0A' }}>
-                            {note.patientName}
-                          </div>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: '#2D1F0A' }}>{note.patientName}</div>
                           <div style={{ fontSize: 11, color: '#9A7040', marginTop: 2 }}>
                             {new Date(note.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
                             {note.mood && ` · ${note.mood}`}
                           </div>
                         </div>
-                        <span
-                          style={{
-                            fontSize: 10, fontWeight: 700, padding: '3px 8px',
-                            borderRadius: 6, background: '#F5ECD8', color: '#AD6D15',
-                          }}
-                        >
+                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: '#F5ECD8', color: '#AD6D15' }}>
                           {note.mood ?? '—'}
                         </span>
                       </div>
@@ -389,7 +807,6 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                 </div>
               </div>
 
-              {/* Pacientes recentes */}
               <div className={styles.card}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
                   <h3 className={styles.cardTitle} style={{ margin: 0 }}>Pacientes Recentes</h3>
@@ -401,12 +818,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                   <div className={styles.tableWrapper}>
                     <table className={styles.table}>
                       <thead>
-                        <tr>
-                          <th>Paciente</th>
-                          <th>Status</th>
-                          <th>Evoluções</th>
-                          <th>Ações</th>
-                        </tr>
+                        <tr><th>Paciente</th><th>Status</th><th>Evoluções</th><th>Ações</th></tr>
                       </thead>
                       <tbody>
                         {dash.patients.slice(0, 6).map(pt => (
@@ -416,35 +828,17 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                               <div style={{ fontSize: 11, color: '#9A7040' }}>{pt.therapyType || 'Terapia'}</div>
                             </td>
                             <td>
-                              <span className={`${styles.badge} ${
-                                pt.status === 'active'   ? styles.badgeActive
-                                : pt.status === 'waiting' ? styles.badgeWaiting
-                                : styles.badgeInactive
-                              }`}>
+                              <span className={`${styles.badge} ${pt.status === 'active' ? styles.badgeActive : pt.status === 'waiting' ? styles.badgeWaiting : styles.badgeInactive}`}>
                                 {pt.status === 'active' ? 'Ativo' : pt.status === 'waiting' ? 'Aguardando' : 'Inativo'}
                               </span>
                             </td>
                             <td>
-                              <span style={{ fontSize: 13, color: '#9A7040' }}>
-                                {dash.notesForPatient(pt.id).length} registros
-                              </span>
+                              <span style={{ fontSize: 13, color: '#9A7040' }}>{dash.notesForPatient(pt.id).length} registros</span>
                             </td>
                             <td>
                               <div className={styles.tableActions}>
-                                <button
-                                  className={styles.btnAction}
-                                  style={{ padding: '6px 10px', fontSize: 10 }}
-                                  onClick={() => dash.openNewNoteModal(pt)}
-                                >
-                                  + Evolução
-                                </button>
-                                <button
-                                  className={styles.btnPrimary}
-                                  style={{ padding: '6px 10px', fontSize: 10 }}
-                                  onClick={() => dash.openPatientModal(pt)}
-                                >
-                                  Prontuário
-                                </button>
+                                <button className={styles.btnAction} style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => dash.openNewNoteModal(pt)}>+ Evolução</button>
+                                <button className={styles.btnPrimary} style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => dash.openPatientModal(pt)}>Prontuário</button>
                               </div>
                             </td>
                           </tr>
@@ -459,86 +853,14 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
 
           {/* ── EVOLUÇÃO TAB ── */}
           {dash.activeTab === 'evolucao' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-              <div className={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-                  <h3 className={styles.cardTitle} style={{ margin: 0 }}>Todas as Evoluções</h3>
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <button className={styles.btnPrimary} onClick={() => {
-                      if (dash.patients.length > 0) dash.openNewNoteModal(dash.patients[0]);
-                    }}>
-                      + Nova Evolução
-                    </button>
-                  </div>
-                </div>
-
-                {dash.notesLoading ? (
-                  <p className={styles.loadingPulse}>Carregando evoluções…</p>
-                ) : dash.notes.length === 0 ? (
-                  <div className={styles.emptyState}>
-                    <div className={styles.emptyIcon}>📋</div>
-                    <h3 className={styles.emptyTitle}>Nenhuma evolução ainda</h3>
-                    <p className={styles.emptyText}>
-                      Registre a primeira evolução clínica de um paciente para começar.
-                    </p>
-                  </div>
-                ) : (
-                  dash.notes.map(note => (
-                    <div
-                      key={note.id}
-                      style={{
-                        background: '#FAF6EE', border: '1px solid #EEE2C8', borderRadius: 12,
-                        padding: 16, marginBottom: 10, transition: 'all 0.2s',
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
-                        <div>
-                          <div style={{ fontWeight: 700, color: '#2D1F0A', fontSize: 14 }}>
-                            {note.patientName}
-                            <span style={{ fontWeight: 400, color: '#9A7040', marginLeft: 10, fontSize: 12 }}>
-                              {new Date(note.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                              {note.sessionNumber ? ` · Sessão #${note.sessionNumber}` : ''}
-                            </span>
-                          </div>
-                          <div style={{ display: 'flex', gap: 8, marginTop: 4, flexWrap: 'wrap' }}>
-                            {note.mood && (
-                              <span style={{ fontSize: 10, fontWeight: 700, padding: '2px 8px', borderRadius: 6, background: '#F5ECD8', color: '#AD6D15', textTransform: 'uppercase' }}>
-                                {note.mood}
-                              </span>
-                            )}
-                            {note.topics?.slice(0, 3).map(t => (
-                              <span key={t} style={{ fontSize: 11, color: '#9A7040' }}>#{t}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <button
-                            style={{ padding: '5px 10px', fontSize: 10, fontWeight: 600, background: '#fff', border: '1px solid #D9C49A', color: '#AD6D15', borderRadius: 6, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                            onClick={() => dash.openEditNoteModal(note)}
-                          >
-                            ✏ Editar
-                          </button>
-                          <button
-                            style={{ padding: '5px 10px', fontSize: 10, fontWeight: 600, background: '#FEF0EC', border: '1px solid #F0C0A8', color: '#C45A35', borderRadius: 6, cursor: 'pointer', fontFamily: 'DM Sans, sans-serif', textTransform: 'uppercase', letterSpacing: '0.05em' }}
-                            onClick={() => dash.handleDeleteNote(note.id)}
-                          >
-                            🗑 Excluir
-                          </button>
-                        </div>
-                      </div>
-                      <div style={{ fontSize: 13, lineHeight: 1.65, color: '#5A3E20' }}>
-                        {note.content.length > 220 ? note.content.substring(0, 220) + '…' : note.content}
-                      </div>
-                      {note.nextSteps && (
-                        <div style={{ marginTop: 8, paddingTop: 8, borderTop: '1px solid #E8D9BE', fontSize: 12, color: '#9A7040' }}>
-                          <strong>Próximos passos:</strong> {note.nextSteps}
-                        </div>
-                      )}
-                    </div>
-                  ))
-                )}
-              </div>
-            </div>
+            <EvolucaoTab
+              patients={dash.patients}
+              notes={dash.notes}
+              notesLoading={dash.notesLoading}
+              onNewNote={dash.openNewNoteModal}
+              onEditNote={dash.openEditNoteModal}
+              onDeleteNote={dash.handleDeleteNote}
+            />
           )}
 
           {/* ── PATIENTS TAB ── */}
@@ -552,9 +874,9 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
               <h3 className={styles.cardTitle}>Resumo Financeiro</h3>
               <div className={styles.kpiGrid}>
                 {[
-                  { label: 'Faturamento Total',   value: `R$ ${financialTotalMonth.toLocaleString('pt-BR')}`, color: '#2D1F0A' },
-                  { label: 'Recebido',             value: `R$ ${financialReceived.toLocaleString('pt-BR')}`,  color: '#2E9E5B' },
-                  { label: 'Pendente',             value: `R$ ${dash.pendingTotal.toLocaleString('pt-BR')}`,  color: '#C45A35' },
+                  { label: 'Faturamento Total', value: `R$ ${financialTotalMonth.toLocaleString('pt-BR')}`, color: '#2D1F0A' },
+                  { label: 'Recebido',           value: `R$ ${financialReceived.toLocaleString('pt-BR')}`,  color: '#2E9E5B' },
+                  { label: 'Pendente',           value: `R$ ${dash.pendingTotal.toLocaleString('pt-BR')}`,  color: '#C45A35' },
                 ].map(item => (
                   <div key={item.label} className={styles.finCard}>
                     <div className={styles.kpiTitle}>{item.label}</div>
@@ -575,14 +897,8 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                   </svg>
                 </div>
                 <h3 className={styles.emptyTitle}>{activeTabLabel}</h3>
-                <p className={styles.emptyText}>
-                  Este módulo está em desenvolvimento e em breve estará disponível.
-                </p>
-                <button
-                  className={styles.btnAction}
-                  style={{ marginTop: 24 }}
-                  onClick={() => handleTabChange('dashboard')}
-                >
+                <p className={styles.emptyText}>Este módulo está em desenvolvimento e em breve estará disponível.</p>
+                <button className={styles.btnAction} style={{ marginTop: 24 }} onClick={() => handleTabChange('dashboard')}>
                   Voltar ao Painel
                 </button>
               </div>
