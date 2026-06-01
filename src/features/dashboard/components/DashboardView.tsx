@@ -5,7 +5,7 @@ import React, { useState, useMemo } from 'react';
 import Sidebar, { MenuCategory } from '@/components/Sidebar';
 import PatientsTab from '@/features/patients/components/PatientsTab';
 import EvolutionModal, { ClinicalNote } from '@/features/patients/components/EvolutionModal';
-import { useDashboard, Patient } from '@/features/dashboard/hooks/useDashboard';
+import { useDashboard, Patient, Appointment } from '@/features/dashboard/hooks/useDashboard';
 import type { Patient as AppwritePatient } from '@/features/patients/usePatients';
 import styles from './DashboardView.module.css';
 
@@ -547,7 +547,8 @@ interface DashboardViewProps {
 
 export default function DashboardView({ onLogout, userId }: DashboardViewProps) {
   const dash = useDashboard();
-
+  const appointments: Appointment[] = Array.isArray(dash.appointments) ? dash.appointments : [];
+  const patients: Patient[] = Array.isArray(dash.patients) ? dash.patients : [];
   const handleSelectAppwritePatient = (ap: AppwritePatient) => {
     const p: Patient = {
       id: ap.$id,
@@ -755,26 +756,24 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
                     <h3 className={styles.cardTitle} style={{ margin: 0 }}>Agenda de Hoje</h3>
                     <button className={styles.btnAction} onClick={() => handleTabChange('agenda')}>Ver completa</button>
                   </div>
-                  {dash.appointments.map(apt => (
-                    <div key={apt.id} className={styles.sessionItem}>
-                      <div className={styles.sessionLeft}>
-                        <div className={styles.sessionTime}>{apt.time}</div>
-                        <div className={styles.sessionBar} style={{ background: apt.type === 'online' ? '#2E9E5B' : '#AD6D15' }} />
-                        <div>
-                          <div className={styles.sessionName}>{apt.patientName}</div>
-                          <div className={styles.sessionType}>{apt.type === 'online' ? '🖥 Teleconsulta' : '🏥 Presencial'}</div>
-                        </div>
-                      </div>
-                      <button
-                        className={styles.btnAction}
-                        style={{ fontSize: 10, padding: '6px 10px' }}
-                        onClick={() => {
-                          const p = dash.patients.find(x => x.id === apt.patientId);
-                          if (p) dash.openNewNoteModal(p);
-                        }}
-                      >+ Evolução</button>
-                    </div>
-                  ))}
+              
+              {appointments.map((apt: Appointment) => (
+                <div key={apt.id} className={styles.sessionItem}>
+                  <div className={styles.sessionLeft}>
+                    <div className={styles.sessionTime}>{apt.time}</div>
+                    <div className={styles.sessionBar} style={{ background: apt.type === 'online' ? '#2E9E5B' : '#AD6D15' }} />
+                  <div>
+                    <div className={styles.sessionName}>{apt.patientName}</div>
+                    <div className={styles.sessionType}>{apt.type === 'online' ? '🖥 Teleconsulta' : '🏥 Presencial'}</div>
+                  </div>
+                </div>
+            <button className={styles.btnAction} style={{ fontSize: 10, padding: '6px 10px' }} onClick={() => {
+            const p = patients.find((x: Patient) => x.id === apt.patientId);
+        if (p) dash.openNewNoteModal(p);
+        }}
+        >+ Evolução</button>
+          </div>
+           ))}
                 </div>
 
                 <div className={styles.card}>
@@ -889,7 +888,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
 
           {/* ── OTHER TABS — placeholder ── */}
           {!['dashboard', 'pacientes', 'resumo-fin', 'evolucao'].includes(dash.activeTab) && (
-            <div className={styles.card}>
+            <div className={styles.card}>c
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>
                   <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#AD6D15" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
