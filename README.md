@@ -11,7 +11,7 @@
 ![Appwrite](https://img.shields.io/badge/appwrite-%23FD366E.svg?style=for-the-badge&logo=appwrite&logoColor=white)
 ![Bootstrap](https://img.shields.io/badge/bootstrap-%238511FA.svg?style=for-the-badge&logo=bootstrap&logoColor=white)
 
-<img src="https://s0.wp.com/mshots/v1/https://psicosync.vercel.app/?w=1200" width="1200" alt="Demonstração do PsicoSync">
+<img src="https://api.microlink.io/?url=https://psicosync.vercel.app/&screenshot=true&meta=false&embed=screenshot.url" width="1200" alt="Demonstração do PsicoSync">
 
 > O **PsicoSync** é uma plataforma web desenvolvida com **Next.js** e **Appwrite** focada na gestão eficiente de clínicas e consultórios de psicologia, oferecendo uma interface interativa e segura para o gerenciamento de pacientes e prontuários.
 
