@@ -92,7 +92,14 @@ export default function RegisterScreen({ onRegister, onNavigateToLogin }: Regist
     email: v => !v ? 'E-mail é obrigatório' : !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v) ? 'E-mail inválido' : '',
     crp: v => !v.trim() ? 'CRP é obrigatório' : '',
     phone: v => !v.trim() ? 'Telefone é obrigatório' : v.replace(/\D/g, '').length < 10 ? 'Telefone incompleto' : '',
-    password: v => !v ? 'Senha é obrigatória' : v.length < 8 ? 'Mínimo de 8 caracteres' : '',
+    password: v => {
+      if (!v) return 'Senha é obrigatória';
+      if (v.length < 8) return 'A senha deve ter no mínimo 8 caracteres';
+      if (!/[A-Z]/.test(v)) return 'A senha deve conter pelo menos uma letra maiúscula';
+      if (!/[0-9]/.test(v)) return 'A senha deve conter pelo menos um número';
+      if (!/[^A-Za-z0-9]/.test(v)) return 'A senha deve conter pelo menos um caractere especial';
+      return '';
+    },
     confirm: v => !v ? 'Confirmação é obrigatória' : v !== fields.password ? 'Senhas não coincidem' : '',
   };
 
@@ -100,6 +107,29 @@ export default function RegisterScreen({ onRegister, onNavigateToLogin }: Regist
     const msg = validators[key] ? validators[key](val) : '';
     setErr(key, msg);
     return msg;
+  };
+
+  const getCustomErrorMessage = (error: any) => {
+    const message = error?.message?.toLowerCase() || '';
+    const code = error?.code;
+
+    if (message.includes('password') && message.includes('length')) {
+      return 'A senha é muito curta. Ela deve ter pelo menos 8 caracteres.';
+    }
+    if (message.includes('already exists') || message.includes('user_already_exists') || code === 409) {
+      return 'Este e-mail já está cadastrado em nossa plataforma. Tente fazer login.';
+    }
+    if (message.includes('invalid email') || message.includes('valid email')) {
+      return 'Por favor, insira um endereço de e-mail válido.';
+    }
+    if (message.includes('rate limit')) {
+      return 'Muitas tentativas de cadastro. Por favor, aguarde alguns minutos e tente novamente.';
+    }
+    if (message.includes('network error') || code === 500) {
+      return 'Problema de conexão com o servidor. Verifique sua internet e tente novamente.';
+    }
+
+    return 'Ocorreu um erro inesperado ao criar a conta. Tente novamente mais tarde.';
   };
 
   const handleStep1 = (e: React.FormEvent) => {
@@ -125,7 +155,6 @@ export default function RegisterScreen({ onRegister, onNavigateToLogin }: Regist
     setIsLoading(true);
     
     try {
-     
       await registerUser(
         fields.name, 
         fields.email, 
@@ -136,12 +165,7 @@ export default function RegisterScreen({ onRegister, onNavigateToLogin }: Regist
       );
       onRegister(); 
     } catch (err: any) {
-      const errorMsg = err?.message || '';
-      if (errorMsg.includes('already exists') || errorMsg.includes('user_already_exists')) {
-        setServerError('Este e-mail já está cadastrado em nossa plataforma.');
-      } else {
-        setServerError('Ocorreu um erro ao criar a conta. Tente novamente mais tarde.');
-      }
+      setServerError(getCustomErrorMessage(err));
     } finally {
       setIsLoading(false);
     }

@@ -1,19 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Patient, PatientInput } from '../usePatients';
 
 interface PatientModalProps {
   patient?: Patient | null;
   onSave: (data: PatientInput) => Promise<void>;
   onClose: () => void;
-}
-
-export interface EvolutionEntry {
-  id: string;
-  date: string;
-  state: string;
-  text: string;
 }
 
 const emptyForm = {
@@ -114,18 +108,17 @@ const inputStyle = (hasError?: boolean): React.CSSProperties => ({
   outline: 'none',
   width: '100%',
   transition: 'border-color 0.2s, box-shadow 0.2s',
+  boxSizing: 'border-box'
 });
 
 export default function PatientModal({ patient, onSave, onClose }: PatientModalProps) {
+  const [mounted, setMounted] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormState, string>>>({});
-  
-  const [evolutions, setEvolutions] = useState<EvolutionEntry[]>([]);
-  const [currentEv, setCurrentEv] = useState<EvolutionEntry>({ id: '', date: '', state: 'Estável', text: '' });
-  const [isEditingEv, setIsEditingEv] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
     if (patient) {
       setForm({
         name: patient.name || '',
@@ -148,21 +141,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
         nextSession: patient.nextSession || '',
         lastSession: patient.lastSession || '',
       });
-
-      if (patient.evolution && Array.isArray(patient.evolution)) {
-        const loadedEvolutions = patient.evolution.map(evString => {
-          try {
-            return JSON.parse(evString) as EvolutionEntry;
-          } catch (e) {
-            return null;
-          }
-        }).filter((ev): ev is EvolutionEntry => ev !== null);
-        
-        setEvolutions(loadedEvolutions);
-      }
     } else {
       setForm(emptyForm);
-      setEvolutions([]);
     }
   }, [patient]);
 
@@ -186,35 +166,6 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
       setForm(prev => ({ ...prev, [key]: formatCurrency(e.target.value) }));
       setErrors(prev => ({ ...prev, [key]: undefined }));
     };
-
-  const handleSaveEvolution = () => {
-    if (!currentEv.text.trim()) return alert('O texto da evolução não pode estar vazio.');
-    if (!currentEv.date) return alert('Selecione uma data para a evolução.');
-
-    if (isEditingEv) {
-      setEvolutions(prev => prev.map(ev => ev.id === currentEv.id ? currentEv : ev));
-    } else {
-      setEvolutions(prev => [{ ...currentEv, id: Date.now().toString() }, ...prev]);
-    }
-    
-    setCurrentEv({ id: '', date: '', state: 'Estável', text: '' });
-    setIsEditingEv(false);
-  };
-
-  const editEvolution = (ev: EvolutionEntry) => {
-    setCurrentEv(ev);
-    setIsEditingEv(true);
-  };
-
-  const deleteEvolution = (id: string) => {
-    if (confirm('Deseja realmente apagar esta anotação?')) {
-      setEvolutions(prev => prev.filter(ev => ev.id !== id));
-      if (currentEv.id === id) {
-        setCurrentEv({ id: '', date: '', state: 'Estável', text: '' });
-        setIsEditingEv(false);
-      }
-    }
-  };
 
   const validate = () => {
     const newErrors: typeof errors = {};
@@ -246,8 +197,6 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
         status: form.status,
         nextSession: form.nextSession,
         lastSession: form.lastSession,
-       
-        evolution: evolutions.map(ev => JSON.stringify(ev)),
       } as any);
       onClose();
     } catch (err: any) {
@@ -267,11 +216,6 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
       <path d="M9 12h6m-3-3v6" /><rect x="3" y="3" width="18" height="18" rx="3" />
     </svg>
   );
-  const IconNotes = (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#AD6D15" strokeWidth="2.5" strokeLinecap="round">
-      <path d="M12 20h9" /><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
-    </svg>
-  );
   const IconMoney = (
     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#AD6D15" strokeWidth="2.5" strokeLinecap="round">
       <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
@@ -283,75 +227,39 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
     </svg>
   );
 
-  const grid2: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 };
-  const grid3: React.CSSProperties = { display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 };
-
   const statusOptions: { key: 'active' | 'waiting' | 'inactive'; label: string; color: string; bg: string; border: string }[] = [
     { key: 'active', label: 'Ativo', color: '#1A6E3F', bg: '#E8F4EC', border: '#2E9E5B' },
     { key: 'waiting', label: 'Aguardando', color: '#993C1D', bg: '#FEF0EC', border: '#C45A35' },
     { key: 'inactive', label: 'Inativo', color: '#7A5020', bg: '#F5ECD8', border: '#C8A96E' },
   ];
-  
-  const emotionOptions = ['Estável', 'Calmo', 'Ansioso', 'Irritado', 'Triste', 'Eufórico', 'Agressivo', 'Apático', 'Angustiado'];
 
-  return (
-    <div style={{
-      position: 'fixed', inset: 0,
-      background: 'rgba(26,16,8,0.55)',
-      backdropFilter: 'blur(4px)',
-      zIndex: 200,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      padding: 24,
-    }} onClick={onClose}>
-      <div style={{
-        background: 'white',
-        borderRadius: 20,
-        width: '100%',
-        maxWidth: 720,
-        maxHeight: '92vh',
-        overflowY: 'auto',
-        boxShadow: '0 24px 64px rgba(0,0,0,0.2)',
-      }} onClick={e => e.stopPropagation()}>
+  if (!mounted) return null;
 
-        <div style={{
-          background: '#1A1008',
-          padding: '24px 32px',
-          display: 'flex', alignItems: 'center', gap: 16,
-          borderRadius: '20px 20px 0 0',
-          position: 'sticky', top: 0, zIndex: 10,
-        }}>
-          <div style={{
-            width: 44, height: 44, borderRadius: 12,
-            background: 'rgba(239,187,85,0.15)',
-            border: '1px solid rgba(239,187,85,0.3)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            flexShrink: 0,
-          }}>
+  const modalContent = (
+    <div className="pm-overlay" onClick={onClose}>
+      <div className="pm-modal-box" onClick={e => e.stopPropagation()}>
+
+        <div className="pm-modal-header">
+          <div className="pm-header-icon-box">
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EFBB55" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
               <circle cx="12" cy="7" r="4" />
             </svg>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontFamily: "'Lora', serif", fontSize: 20, fontWeight: 600, color: 'white', lineHeight: 1.2 }}>
-              {patient ? `Editar — ${patient.name.split(' ')[0]}` : 'Novo Paciente'}
-            </div>
-            <div style={{ fontSize: 12, color: 'rgba(239,187,85,0.6)', marginTop: 4 }}>
+          
+          <div className="pm-header-texts">
+            <h2 className="pm-title">
+              {patient ? `Editar — ${(patient.name || 'Paciente').split(' ')[0]}` : 'Novo Paciente'}
+            </h2>
+            <span className="pm-subtitle">
               {patient ? 'Atualize os dados clínicos e de contato' : 'Preencha os dados clínicos e de contato'}
-            </div>
+            </span>
           </div>
-          <button onClick={onClose} style={{
-            background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.1)',
-            color: 'rgba(255,255,255,0.5)', width: 32, height: 32, borderRadius: 8,
-            cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            fontSize: 16, transition: 'all 0.18s', flexShrink: 0,
-          }}
-            onMouseOver={e => { e.currentTarget.style.color = 'white'; e.currentTarget.style.background = 'rgba(255,255,255,0.15)'; }}
-            onMouseOut={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.5)'; e.currentTarget.style.background = 'rgba(255,255,255,0.08)'; }}
-          >✕</button>
+
+          <button onClick={onClose} className="pm-close-btn" aria-label="Fechar">✕</button>
         </div>
 
-        <div style={{ padding: '28px 32px' }}>
+        <div className="pm-modal-body">
 
           <SectionLabel icon={IconUser}>Dados pessoais</SectionLabel>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -361,21 +269,21 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 value={form.name}
                 onChange={set('name')}
                 placeholder="Ex: Maria da Silva"
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                onBlur={e => { e.target.style.borderColor = errors.name ? '#C45A35' : '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                onBlur={e => { e.target.style.borderColor = errors.name ? '#C45A35' : '#E8D9BE'; }}
               />
               {errors.name && <span style={{ fontSize: 11, color: '#C45A35' }}>{errors.name}</span>}
             </Field>
 
-            <div style={grid2}>
+            <div className="pm-grid-2">
               <Field label="CPF" hint="Necessário para emissão de recibos">
                 <input
                   style={inputStyle()}
                   value={form.cpf}
                   onChange={setCPF}
                   placeholder="000.000.000-00"
-                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
                 />
               </Field>
               <Field label="Data de nascimento">
@@ -384,8 +292,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                   style={inputStyle()}
                   value={form.birthDate}
                   onChange={set('birthDate')}
-                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
                 />
               </Field>
               <Field label="Telefone" required>
@@ -394,8 +302,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                   value={form.phone}
                   onChange={setPhone}
                   placeholder="(81) 99999-9999"
-                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                  onBlur={e => { e.target.style.borderColor = errors.phone ? '#C45A35' : '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                  onBlur={e => { e.target.style.borderColor = errors.phone ? '#C45A35' : '#E8D9BE'; }}
                 />
                 {errors.phone && <span style={{ fontSize: 11, color: '#C45A35' }}>{errors.phone}</span>}
               </Field>
@@ -406,22 +314,22 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                   value={form.email}
                   onChange={set('email')}
                   placeholder="paciente@email.com"
-                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                  onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                  onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                  onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
                 />
               </Field>
             </div>
           </div>
 
           <SectionLabel icon={IconClinical}>Informações clínicas</SectionLabel>
-          <div style={grid2}>
+          <div className="pm-grid-2">
             <Field label="Tipo de terapia" required>
               <select
                 style={inputStyle(!!errors.therapyType)}
                 value={form.therapyType}
                 onChange={set('therapyType')}
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; }}
-                onBlur={e => { e.target.style.borderColor = errors.therapyType ? '#C45A35' : '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; }}
+                onBlur={e => { e.target.style.borderColor = errors.therapyType ? '#C45A35' : '#E8D9BE'; }}
               >
                 <option value="">Selecionar...</option>
                 <option>Terapia Cognitivo-Comportamental</option>
@@ -441,8 +349,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 style={inputStyle()}
                 value={form.frequency}
                 onChange={set('frequency')}
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               >
                 <option>Semanal</option>
                 <option>Quinzenal</option>
@@ -456,8 +364,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 style={inputStyle()}
                 value={form.modality}
                 onChange={set('modality')}
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               >
                 <option>Presencial</option>
                 <option>Online</option>
@@ -471,8 +379,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 value={form.referredBy}
                 onChange={set('referredBy')}
                 placeholder="Ex: Dr. Carlos Menezes"
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               />
             </Field>
 
@@ -482,8 +390,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 style={inputStyle()}
                 value={form.nextSession}
                 onChange={set('nextSession')}
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               />
             </Field>
 
@@ -493,118 +401,22 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 style={inputStyle()}
                 value={form.lastSession}
                 onChange={set('lastSession')}
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               />
             </Field>
           </div>
-
-          <SectionLabel icon={IconNotes}>Evoluções Clínicas</SectionLabel>
-          
-          <div style={{
-            background: '#FAF6EE', padding: '16px', borderRadius: 12,
-            border: '1px solid #E8D9BE', marginBottom: 20
-          }}>
-            <h4 style={{ margin: '0 0 12px 0', fontSize: 13, color: '#5A3E20', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-              {isEditingEv ? 'Editar Evolução' : 'Nova Evolução'}
-            </h4>
-            <div style={{ ...grid2, marginBottom: 12 }}>
-              <Field label="Data da Sessão">
-                <input
-                  type="date"
-                  style={inputStyle()}
-                  value={currentEv.date}
-                  onChange={e => setCurrentEv(prev => ({ ...prev, date: e.target.value }))}
-                />
-              </Field>
-              <Field label="Estado Emocional">
-                <select
-                  style={inputStyle()}
-                  value={currentEv.state}
-                  onChange={e => setCurrentEv(prev => ({ ...prev, state: e.target.value }))}
-                >
-                  {emotionOptions.map(opt => <option key={opt} value={opt}>{opt}</option>)}
-                </select>
-              </Field>
-            </div>
-            <Field label="Anotações da Sessão">
-              <textarea
-                style={{ ...inputStyle(), minHeight: 80, resize: 'vertical' }}
-                placeholder="Detalhes, insights, tarefas recomendadas..."
-                value={currentEv.text}
-                onChange={e => setCurrentEv(prev => ({ ...prev, text: e.target.value }))}
-              />
-            </Field>
-            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, gap: 8 }}>
-              {isEditingEv && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsEditingEv(false);
-                    setCurrentEv({ id: '', date: '', state: 'Estável', text: '' });
-                  }}
-                  style={{
-                    background: 'transparent', border: '1px solid #D9C49A', color: '#9A7040',
-                    padding: '8px 16px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600
-                  }}
-                >
-                  Cancelar
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleSaveEvolution}
-                style={{
-                  background: '#2D1F0A', border: 'none', color: '#EFBB55',
-                  padding: '8px 16px', borderRadius: 6, fontSize: 12, cursor: 'pointer', fontWeight: 600
-                }}
-              >
-                {isEditingEv ? 'Salvar Edição' : 'Adicionar à Lista'}
-              </button>
-            </div>
-          </div>
-
-          {evolutions.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              {evolutions.map(ev => (
-                <div key={ev.id} style={{
-                  border: '1px solid #E8D9BE', borderRadius: 12, padding: '14px', background: '#FFF'
-                }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 13, fontWeight: 700, color: '#2D1F0A' }}>
-                        {ev.date ? new Date(ev.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'Sem data'}
-                      </span>
-                      <span style={{
-                        background: '#F5ECD8', color: '#AD6D15', padding: '2px 8px',
-                        borderRadius: 4, fontSize: 10, fontWeight: 600, textTransform: 'uppercase'
-                      }}>
-                        {ev.state}
-                      </span>
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button type="button" onClick={() => editEvolution(ev)} style={{ background: 'none', border: 'none', color: '#9A7040', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Editar</button>
-                      <button type="button" onClick={() => deleteEvolution(ev.id)} style={{ background: 'none', border: 'none', color: '#C45A35', fontSize: 12, cursor: 'pointer', textDecoration: 'underline' }}>Excluir</button>
-                    </div>
-                  </div>
-                  <p style={{ margin: 0, fontSize: 13, color: '#5A3E20', whiteSpace: 'pre-wrap', lineHeight: 1.5 }}>
-                    {ev.text}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
 
           <SectionLabel icon={IconMoney}>Financeiro</SectionLabel>
-          <div style={grid3}>
+          <div className="pm-grid-3">
             <Field label="Valor da sessão" required>
               <input
                 style={inputStyle(!!errors.sessionValue)}
                 value={form.sessionValue}
                 onChange={setCurrency('sessionValue')}
                 placeholder="R$ 0,00"
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                onBlur={e => { e.target.style.borderColor = errors.sessionValue ? '#C45A35' : '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                onBlur={e => { e.target.style.borderColor = errors.sessionValue ? '#C45A35' : '#E8D9BE'; }}
               />
               {errors.sessionValue && <span style={{ fontSize: 11, color: '#C45A35' }}>{errors.sessionValue}</span>}
             </Field>
@@ -614,8 +426,8 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 value={form.insurance}
                 onChange={set('insurance')}
                 placeholder="Particular, Unimed..."
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               />
             </Field>
             <Field label="Valor pendente">
@@ -624,14 +436,14 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                 value={form.pendingAmount}
                 onChange={setCurrency('pendingAmount')}
                 placeholder="R$ 0,00"
-                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.boxShadow = '0 0 0 3px rgba(173,109,21,0.1)'; e.target.style.background = 'white'; }}
-                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; e.target.style.boxShadow = 'none'; }}
+                onFocus={e => { e.target.style.borderColor = '#AD6D15'; e.target.style.background = 'white'; }}
+                onBlur={e => { e.target.style.borderColor = '#E8D9BE'; }}
               />
             </Field>
           </div>
 
           <SectionLabel icon={IconStatus}>Status do paciente</SectionLabel>
-          <div style={{ display: 'flex', gap: 10 }}>
+          <div className="pm-status-options">
             {statusOptions.map(opt => (
               <button
                 key={opt.key}
@@ -646,10 +458,7 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                   transition: 'all 0.18s',
                 }}
               >
-                <div style={{
-                  width: 8, height: 8, borderRadius: '50%',
-                  background: opt.border,
-                }} />
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: opt.border }} />
                 <span style={{
                   fontSize: 11, fontWeight: 600,
                   textTransform: 'uppercase', letterSpacing: '0.05em',
@@ -662,35 +471,15 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
           </div>
         </div>
 
-        <div style={{
-          padding: '18px 32px',
-          borderTop: '1px solid #F0E8D8',
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          background: '#FDFAF5',
-          borderRadius: '0 0 20px 20px',
-          position: 'sticky', bottom: 0,
-        }}>
-          <span style={{ fontSize: 11, color: '#9A7040' }}>
+        <div className="pm-modal-footer">
+          <span className="pm-footer-hint">
             <span style={{ color: '#C45A35' }}>*</span> campos obrigatórios
           </span>
-          <div style={{ display: 'flex', gap: 12 }}>
-            <button onClick={onClose} style={{
-              background: 'none', border: '1.5px solid #D9C49A',
-              color: '#9A7040', padding: '10px 20px', borderRadius: 8,
-              fontSize: 12, fontWeight: 600, letterSpacing: '0.05em',
-              textTransform: 'uppercase', cursor: 'pointer',
-            }}>
+          <div className="pm-footer-buttons">
+            <button onClick={onClose} className="pm-btn-cancel">
               Cancelar
             </button>
-            <button onClick={handleSubmit} disabled={saving} style={{
-              background: saving ? '#9A7040' : '#1A1008',
-              color: '#EFBB55', border: 'none',
-              padding: '10px 28px', borderRadius: 8,
-              fontSize: 12, fontWeight: 600, letterSpacing: '0.06em',
-              textTransform: 'uppercase', cursor: saving ? 'not-allowed' : 'pointer',
-              display: 'flex', alignItems: 'center', gap: 8,
-              transition: 'all 0.18s',
-            }}>
+            <button onClick={handleSubmit} disabled={saving} className="pm-btn-save">
               {saving ? (
                 <>
                   <div style={{ width: 14, height: 14, border: '2px solid rgba(239,187,85,0.3)', borderTopColor: '#EFBB55', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }} />
@@ -701,7 +490,7 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <polyline points="20 6 9 17 4 12" />
                   </svg>
-                  {patient ? 'Salvar Tudo' : 'Cadastrar Paciente'}
+                  {patient ? 'Salvar Edição' : 'Cadastrar Paciente'}
                 </>
               )}
             </button>
@@ -709,7 +498,155 @@ export default function PatientModal({ patient, onSave, onClose }: PatientModalP
         </div>
       </div>
 
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .pm-overlay, .pm-overlay * { box-sizing: border-box !important; }
+
+        .pm-overlay {
+          position: fixed;
+          inset: 0;
+          background: rgba(26,16,8,0.55);
+          backdrop-filter: blur(4px);
+          z-index: 999999;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 16px;
+        }
+
+        .pm-modal-box {
+          background: white;
+          border-radius: 20px;
+          width: 100%;
+          max-width: 680px;
+          max-height: calc(100vh - 32px);
+          margin: auto;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 24px 64px rgba(0,0,0,0.2);
+          overflow: hidden;
+        }
+
+        .pm-modal-header {
+          background: #1A1008;
+          padding: 24px 32px;
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          width: 100%;
+          flex-shrink: 0;
+        }
+
+        .pm-header-left-content {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          flex: 1;
+        }
+
+        .pm-header-icon-box {
+          width: 44px; height: 44px;
+          border-radius: 12px;
+          background: rgba(239,187,85,0.15);
+          border: 1px solid rgba(239,187,85,0.3);
+          display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0;
+        }
+
+        .pm-header-texts {
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+          flex: 1;
+        }
+
+        .pm-title {
+          font-family: 'Lora', serif !important;
+          font-size: 22px !important;
+          font-weight: 600 !important;
+          color: #FFFFFF !important;
+          line-height: 1.2 !important;
+          margin: 0 !important;
+          white-space: normal !important; /* BLINDAGEM CONTRA CORTE DE TEXTO */
+        }
+
+        .pm-subtitle {
+          font-size: 12px;
+          color: rgba(239,187,85,0.6);
+          margin-top: 4px;
+          line-height: 1.3;
+          white-space: normal !important;
+        }
+
+        .pm-close-btn {
+          background: rgba(255,255,255,0.08);
+          border: 1px solid rgba(255,255,255,0.1);
+          color: rgba(255,255,255,0.5);
+          width: 32px; height: 32px; border-radius: 8px;
+          cursor: pointer; display: flex; align-items: center; justify-content: center;
+          font-size: 16px; transition: all 0.18s; flex-shrink: 0;
+          margin-left: 12px;
+        }
+
+        .pm-close-btn:hover { color: #FFF; background: rgba(255,255,255,0.15); }
+
+        .pm-modal-body {
+          padding: 24px 32px;
+          overflow-y: auto;
+          overflow-x: hidden;
+          flex: 1;
+        }
+
+        .pm-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+        .pm-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; }
+        .pm-status-options { display: flex; gap: 10px; }
+
+        .pm-modal-footer {
+          padding: 18px 32px; border-top: 1px solid #F0E8D8; display: flex;
+          justify-content: space-between; align-items: center; background: #FDFAF5; flex-shrink: 0;
+        }
+
+        .pm-footer-hint { font-size: 11px; color: #9A7040; }
+        .pm-footer-buttons { display: flex; gap: 12px; }
+
+        .pm-btn-cancel {
+          background: none; border: 1.5px solid #D9C49A; color: #9A7040; padding: 10px 20px;
+          border-radius: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.05em;
+          text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center;
+        }
+
+        .pm-btn-save {
+          background: #1A1008; color: #EFBB55; border: none; padding: 10px 28px;
+          border-radius: 8px; font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
+          text-transform: uppercase; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;
+          transition: all 0.18s;
+        }
+
+        .pm-btn-save:disabled { background: #9A7040; cursor: not-allowed; }
+
+        @media (max-width: 640px) {
+          .pm-overlay { padding: 12px; }
+          .pm-modal-box { max-height: calc(100vh - 24px); border-radius: 16px; }
+
+          .pm-modal-header { padding: 16px; }
+          .pm-header-left-content { gap: 12px; }
+          .pm-header-icon-box { width: 36px; height: 36px; }
+          .pm-header-icon-box svg { width: 18px; height: 18px; }
+          .pm-title { font-size: 18px !important; }
+          .pm-subtitle { font-size: 11px; }
+
+          .pm-modal-body { padding: 20px; }
+          .pm-grid-2, .pm-grid-3 { grid-template-columns: 1fr; gap: 12px; }
+          .pm-status-options { flex-direction: column; }
+          
+          .pm-modal-footer { padding: 16px 20px; flex-direction: column; gap: 16px; align-items: center; }
+          .pm-footer-buttons { width: 100%; flex-direction: column-reverse; }
+          .pm-btn-cancel, .pm-btn-save { width: 100%; justify-content: center; }
+        }
+      `}</style>
     </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
