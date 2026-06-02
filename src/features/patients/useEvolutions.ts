@@ -5,30 +5,25 @@ import type { ClinicalNote } from '@/features/patients/components/EvolutionModal
 
 /**
  * Appwrite Collection IDs
- * Add these to your .env.local:
- *
- *   NEXT_PUBLIC_APPWRITE_DATABASE_ID=<your-db-id>
- *   NEXT_PUBLIC_APPWRITE_EVOLUTIONS_COLLECTION_ID=<your-evolutions-collection-id>
- *
+
  * Collection attributes (all required):
- *   patientId       → string (index: key)
- *   date            → string  (ISO date "YYYY-MM-DD")
- *   content         → string  (longtext)
- *   mood            → string
- *   topics          → string[]  (array)
- *   intervention    → string
- *   nextSteps       → string
- *   sessionNumber   → integer
- *   duration        → integer  (minutes)
- *   isTelehealth    → boolean
- *
- * Create an index on `patientId` (type: key) for fast queries per patient.
+ * patientId       → string (index: key)
+ * date            → string  (ISO date "YYYY-MM-DD")
+ * content         → string  (longtext)
+ * mood            → string
+ * topics          → string[]  (array)
+ * intervention    → string
+ * nextSteps       → string
+ * sessionNumber   → integer
+ * duration        → integer  (minutes)
+ * isTelehealth    → boolean
+
  */
 
 const DB_ID  = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID ?? '';
 const COL_ID = process.env.NEXT_PUBLIC_APPWRITE_EVOLUTIONS_COLLECTION_ID ?? '';
 
-type RawNote = Omit<ClinicalNote, 'patientName' | 'status'>;
+export type RawNote = Omit<ClinicalNote, 'patientName' | 'status'> & { id?: string };
 
 function docToNote(doc: any, patientName: string): ClinicalNote {
   return {
@@ -52,7 +47,6 @@ export function useEvolutions() {
   const [notes, setNotes]       = useState<ClinicalNote[]>([]);
   const [loading, setLoading]   = useState(false);
 
-  /* ── Fetch all notes for a patient ── */
   const fetchForPatient = useCallback(async (patientId: string, patientName: string) => {
     if (!DB_ID || !COL_ID) return;
     setLoading(true);
@@ -71,7 +65,6 @@ export function useEvolutions() {
     }
   }, []);
 
-  /* ── Fetch ALL notes (for dashboard) ── */
   const fetchAll = useCallback(async (
     patientMap: Record<string, string>  // { [patientId]: patientName }
   ) => {
@@ -127,18 +120,20 @@ export function useEvolutions() {
     raw: RawNote,
     patientName: string,
   ): Promise<ClinicalNote | null> => {
-    if (!DB_ID || !COL_ID) return null;
+    if (!DB_ID || !COL_ID || !raw.id) return null;
     try {
+      // Isola os campos, evitando enviar o id como atributo para atualizar
+      const { id, patientId, ...fieldsToUpdate } = raw;
       const doc = await databases.updateDocument(DB_ID, COL_ID, raw.id, {
-        date:          raw.date,
-        content:       raw.content,
-        mood:          raw.mood ?? 'Estável',
-        topics:        raw.topics ?? [],
-        intervention:  raw.intervention ?? '',
-        nextSteps:     raw.nextSteps ?? '',
-        sessionNumber: raw.sessionNumber ?? 1,
-        duration:      raw.duration ?? 50,
-        isTelehealth:  raw.isTelehealth ?? false,
+        date:          fieldsToUpdate.date,
+        content:       fieldsToUpdate.content,
+        mood:          fieldsToUpdate.mood ?? 'Estável',
+        topics:        fieldsToUpdate.topics ?? [],
+        intervention:  fieldsToUpdate.intervention ?? '',
+        nextSteps:     fieldsToUpdate.nextSteps ?? '',
+        sessionNumber: fieldsToUpdate.sessionNumber ?? 1,
+        duration:      fieldsToUpdate.duration ?? 50,
+        isTelehealth:  fieldsToUpdate.isTelehealth ?? false,
       });
       const updated = docToNote(doc, patientName);
       setNotes(prev => prev.map(n => n.id === raw.id ? updated : n));

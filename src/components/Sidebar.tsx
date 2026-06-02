@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useCallback, useRef, useEffect } from 'react';
@@ -50,9 +49,9 @@ export default function Sidebar({
   onProfileClick,
   menuCategories,
 }: SidebarProps) {
-  /* ── Close sidebar on Escape key ── */
   const sidebarRef = useRef<HTMLElement>(null);
 
+  /* ── Escape key to close ── */
   const handleKeyDown = useCallback(
     (e: KeyboardEvent) => {
       if (e.key === 'Escape' && isOpen) onClose();
@@ -65,7 +64,6 @@ export default function Sidebar({
     return () => document.removeEventListener('keydown', handleKeyDown);
   }, [handleKeyDown]);
 
-  /* ── Trap focus inside sidebar when open on mobile ── */
   useEffect(() => {
     if (isOpen && sidebarRef.current) {
       const focusable = sidebarRef.current.querySelectorAll<HTMLElement>(
@@ -78,7 +76,6 @@ export default function Sidebar({
   const handleNavItem = useCallback(
     (id: string) => {
       onTabChange(id);
-      // Auto-close on small screens after selection
       if (window.innerWidth <= 1024) onClose();
     },
     [onTabChange, onClose],
@@ -109,7 +106,7 @@ export default function Sidebar({
         <div className={styles.logoArea}>
           <div className={styles.logoInner}>
             <div className={styles.logoIcon} aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24">
+              <svg width="22" height="22" viewBox="0 0 24 24">
                 <path
                   d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
                   fill="#EFBB55"
@@ -128,8 +125,8 @@ export default function Sidebar({
             aria-label="Fechar menu"
           >
             <svg
-              width="18"
-              height="18"
+              width="16"
+              height="16"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"
@@ -154,10 +151,7 @@ export default function Sidebar({
                 {cat.items.map(item => {
                   const isActive = activeTab === item.id;
                   return (
-                    <div
-                      key={item.id}
-                      role="listitem"
-                    >
+                    <div key={item.id} role="listitem">
                       <div
                         className={`${styles.navItem} ${isActive ? styles.active : ''}`}
                         onClick={() => handleNavItem(item.id)}
@@ -172,8 +166,8 @@ export default function Sidebar({
                       >
                         <span className={styles.navIcon} aria-hidden="true">
                           <svg
-                            width="18"
-                            height="18"
+                            width="16"
+                            height="16"
                             viewBox="0 0 24 24"
                             fill="none"
                             stroke="currentColor"
@@ -197,7 +191,7 @@ export default function Sidebar({
                           </span>
                         )}
 
-                        {/* Badge ponto (sem número) */}
+                        {/* Badge ponto */}
                         {item.badgeDot && !item.badge && (
                           <span
                             className={styles.badgeDot}
@@ -253,8 +247,8 @@ export default function Sidebar({
             {onProfileClick && (
               <svg
                 className={styles.profileChevron}
-                width="14"
-                height="14"
+                width="13"
+                height="13"
                 viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
@@ -275,8 +269,6 @@ export default function Sidebar({
             aria-label="Encerrar sessão"
           >
             <svg
-              width="14"
-              height="14"
               viewBox="0 0 24 24"
               fill="none"
               stroke="currentColor"

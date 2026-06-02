@@ -1,0 +1,424 @@
+
+.container {
+  display: grid;
+  grid-template-columns: 300px 1fr;
+  gap: 20px;
+  height: calc(100vh - 160px);
+  min-height: 500px;
+}
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+.mainContent {
+  display: flex;
+  flex-direction: column;
+  background: #fff;
+  border-radius: 16px;
+  border: 1.5px solid #EEE2C8;
+  overflow: hidden;
+}
+
+/* ── Barra de Busca e Lista ── */
+.searchWrapper {
+  display: flex;
+  align-items: center;
+  background: #FDFAF5;
+  border: 1.5px solid #E8D9BE;
+  border-radius: 12px;
+  padding: 0 14px;
+  transition: all 0.2s ease;
+}
+
+.searchWrapper:focus-within {
+  border-color: #AD6D15;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(173, 109, 21, 0.08);
+}
+
+.searchIcon {
+  color: #9A7040;
+  flex-shrink: 0;
+}
+
+.searchInput {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 12px 0 12px 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  color: #2D1F0A;
+  outline: none;
+}
+
+.patientList {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-right: 4px;
+}
+
+.patientList::-webkit-scrollbar { width: 4px; }
+.patientList::-webkit-scrollbar-track { background: transparent; }
+.patientList::-webkit-scrollbar-thumb { background: #D9C49A; border-radius: 4px; }
+
+.patientCard {
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.15s;
+  background: #fff;
+  border: 1.5px solid #EEE2C8;
+}
+
+.patientCard:hover {
+  border-color: #D9C49A;
+}
+
+.patientCardSelected {
+  background: #FDF5E6;
+  border-color: #AD6D15;
+  box-shadow: 0 2px 8px rgba(173, 109, 21, 0.1);
+}
+
+.patientName {
+  font-weight: 700;
+  font-size: 13px;
+  color: #2D1F0A;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.patientCardSelected .patientName {
+  color: #AD6D15;
+}
+
+.patientType {
+  font-size: 11px;
+  color: #9A7040;
+  margin-top: 2px;
+}
+
+/* ── Empty State ── */
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  color: #9A7040;
+  text-align: center;
+}
+
+.emptyTitle {
+  font-family: 'Lora', serif;
+  font-size: 18px;
+  font-weight: 600;
+  color: #5A3E20;
+  margin: 12px 0 4px;
+}
+
+.emptyText {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ── Cabeçalho do Prontuário ── */
+.recordHeader {
+  padding: 24px 32px;
+  background: #FDFAF5;
+  border-bottom: 1px solid #F0E8D8;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.recordTitle {
+  font-family: 'Lora', serif;
+  font-size: 24px;
+  font-weight: 600;
+  color: #2D1F0A;
+  margin: 0 0 8px 0;
+}
+
+.recordBadges {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badgeActive { background: #E8F4EC; color: #2E9E5B; }
+.badgeWaiting { background: #FEF0EC; color: #C45A35; }
+.badgeInactive { background: #F5ECD8; color: #9A7040; }
+.badgeTherapy { background: #F5ECD8; color: #AD6D15; }
+
+.contactInfo {
+  display: flex;
+  gap: 16px;
+  font-size: 12px;
+  color: #7A5020;
+  flex-wrap: wrap;
+}
+
+.btnAction {
+  background: #fff;
+  border: 1.5px solid #D9C49A;
+  color: #AD6D15;
+  padding: 8px 16px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  border-radius: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.btnAction:hover {
+  background: #AD6D15;
+  color: #fff;
+  border-color: #AD6D15;
+}
+
+/* ── Corpo do Prontuário (Timeline) ── */
+.recordBody {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px;
+  background: #fff;
+}
+
+.recordBody::-webkit-scrollbar { width: 6px; }
+.recordBody::-webkit-scrollbar-track { background: transparent; }
+.recordBody::-webkit-scrollbar-thumb { background: #D9C49A; border-radius: 6px; }
+
+.timeline {
+  position: relative;
+  padding-left: 24px;
+}
+
+.timeline::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 5px;
+  width: 2px;
+  background: #F0E8D8;
+}
+
+.timelineItem {
+  position: relative;
+  margin-bottom: 32px;
+}
+
+.timelineDot {
+  position: absolute;
+  left: -24px;
+  top: 2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #AD6D15;
+  border: 3px solid #fff;
+  box-shadow: 0 0 0 1px #F0E8D8;
+}
+
+.noteHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 8px;
+}
+
+.noteDate {
+  font-family: 'Lora', serif;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2D1F0A;
+}
+
+.noteContent {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #5A3E20;
+  background: #FAF6EE;
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid #EEE2C8;
+  white-space: pre-wrap;
+  margin-top: 8px;
+}
+
+/* ── Cabeçalho visível apenas na impressão ── */
+.printHeader {
+  display: none;
+}
+
+/* ── Estilos para Impressão ── */
+@media print {
+  @page {
+    margin: 1.5cm;
+    size: A4 portrait;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+    background: #fff;
+  }
+
+  .sidebar, .btnAction, .searchWrapper, .btnBack {
+    display: none !important;
+  }
+
+  .container {
+    display: block !important;
+    height: auto !important;
+    margin: 0; padding: 0;
+  }
+
+  .mainContent {
+    border: none !important;
+    box-shadow: none !important;
+    display: block !important;
+    overflow: visible !important;
+  }
+
+  .printHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    border-bottom: 2px solid #2D1F0A;
+    padding-bottom: 16px;
+    margin-bottom: 24px;
+  }
+
+  .printLogo {
+    font-family: 'Lora', serif;
+    font-size: 22px;
+    font-weight: bold;
+    color: #2D1F0A;
+  }
+
+  .printMeta {
+    font-family: 'DM Sans', sans-serif;
+    font-size: 11px;
+    color: #5A3E20;
+    text-align: right;
+    line-height: 1.4;
+  }
+
+  .recordHeader {
+    padding: 0 0 16px 0 !important;
+    background: transparent !important;
+    border-bottom: 1px solid #E8D9BE !important;
+    margin-bottom: 24px !important;
+  }
+
+  .recordTitle {
+    font-size: 20px !important;
+    margin-bottom: 4px !important;
+  }
+
+  .recordBody {
+    padding: 0 !important;
+    overflow: visible !important;
+  }
+
+  .timeline {
+    padding-left: 0 !important;
+  }
+
+  .timeline::before {
+    display: none !important;
+  }
+
+  .timelineDot {
+    display: none !important;
+  }
+
+  .timelineItem {
+    margin-bottom: 20px !important;
+    padding-left: 16px !important;
+    border-left: 3px solid #D9C49A !important;
+    page-break-inside: avoid;
+  }
+
+  .noteContent {
+    background: transparent !important;
+    border: none !important;
+    padding: 0 !important;
+    margin-top: 8px !important;
+    font-size: 12px !important;
+    color: #2D1F0A !important;
+  }
+}
+
+/* ── Mobile ── */
+.btnBack { display: none; }
+
+@media (max-width: 768px) {
+  .container {
+    display: flex;
+    flex-direction: column;
+    height: calc(100dvh - 140px);
+  }
+  
+  .container.patientSelected .sidebar {
+    display: none;
+  }
+  
+  .container:not(.patientSelected) .mainContent {
+    display: none;
+  }
+
+  .btnBack {
+    display: inline-flex;
+    background: transparent;
+    border: 1px solid #D9C49A;
+    color: #9A7040;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    align-items: center;
+    gap: 6px;
+  }
+  
+  .recordHeader {
+    padding: 20px;
+  }
+  
+  .recordBody {
+    padding: 20px;
+  }
+}

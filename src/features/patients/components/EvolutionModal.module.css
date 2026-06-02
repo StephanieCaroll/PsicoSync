@@ -1,4 +1,3 @@
-
 @import url('https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
 
 @keyframes backdropIn {
@@ -27,6 +26,7 @@
   justify-content: center;
   padding: 16px;
   animation: backdropIn 0.25s ease;
+  box-sizing: border-box;
 }
 
 /* ── Modal shell ── */
@@ -41,6 +41,7 @@
   flex-direction: column;
   animation: modalSlideUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow: 0 32px 80px rgba(0, 0, 0, 0.28);
+  box-sizing: border-box;
 }
 
 /* ── Modal header ── */
@@ -52,6 +53,7 @@
   justify-content: space-between;
   flex-shrink: 0;
   background: linear-gradient(to bottom, #FFFDF8, #fff);
+  box-sizing: border-box;
 }
 
 .headerLeft { min-width: 0; }
@@ -93,6 +95,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 28px 32px;
+  box-sizing: border-box;
 }
 
 .body::-webkit-scrollbar { width: 5px; }
@@ -109,6 +112,7 @@
   flex-shrink: 0;
   background: #FDFAF5;
   flex-wrap: wrap;
+  box-sizing: border-box;
 }
 
 /* ── Form groups ── */
@@ -132,6 +136,8 @@
 .textarea,
 .select {
   width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 11px 14px;
   border: 1.5px solid #E8D9BE;
   border-radius: 10px;
@@ -285,6 +291,7 @@
   text-transform: uppercase;
   border-radius: 10px;
   font-family: 'DM Sans', sans-serif;
+  box-sizing: border-box;
 }
 .btnPrimary:hover:not(:disabled) { background: #AD6D15; transform: translateY(-1px); }
 .btnPrimary:disabled              { background: #9A7040; cursor: not-allowed; opacity: 0.8; }
@@ -302,6 +309,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-family: 'DM Sans', sans-serif;
+  box-sizing: border-box;
 }
 .btnSecondary:hover { background: #FAF6EE; color: #2D1F0A; }
 
@@ -318,6 +326,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-family: 'DM Sans', sans-serif;
+  box-sizing: border-box;
 }
 .btnAction:hover { background: #AD6D15; color: #fff; border-color: #AD6D15; }
 
@@ -352,6 +361,7 @@
   border-radius: 14px;
   border: 1px solid #E8D9BE;
   margin-bottom: 28px;
+  box-sizing: border-box;
 }
 
 .infoLabel {
@@ -413,6 +423,7 @@
   padding: 16px;
   transition: all 0.2s;
   position: relative;
+  box-sizing: border-box;
 }
 
 .noteCard:hover {
@@ -463,6 +474,7 @@
 .noteActions {
   display: flex;
   gap: 6px;
+  flex-wrap: wrap;
 }
 
 .noteContent {
@@ -470,6 +482,7 @@
   line-height: 1.65;
   color: #5A3E20;
   white-space: pre-wrap;
+  word-wrap: break-word; 
 }
 
 .noteNextSteps {
@@ -479,6 +492,7 @@
   font-size: 12px;
   color: #9A7040;
   line-height: 1.5;
+  word-wrap: break-word;
 }
 
 .btnEdit {
@@ -525,11 +539,102 @@
   opacity: 0.5;
 }
 
-/* ── Responsive ── */
-@media (max-width: 640px) {
-  .modal { border-radius: 14px; }
-  .header { padding: 20px; }
-  .body  { padding: 20px; }
-  .footer { padding: 16px 20px; }
-  .grid2 { grid-template-columns: 1fr; }
+@media (max-width: 768px) {
+  /* Overlay e Modal */
+  .overlay {
+    padding: 0;
+    align-items: flex-end; 
+  }
+  .modal { 
+    border-radius: 20px 20px 0 0; 
+    max-height: 95dvh; 
+    height: 100%; 
+    width: 100%;
+    margin: 0;
+  }
+  
+  /* Cabeçalhos e Rodapés do Modal */
+  .header { 
+    padding: 20px; 
+  }
+  .body { 
+    padding: 16px; 
+  }
+  .footer { 
+    padding: 16px; 
+    flex-direction: column-reverse; 
+    gap: 12px; 
+    align-items: stretch; 
+  }
+
+  /* Botões principais */
+  .btnPrimary, .btnSecondary, .btnAction { 
+    width: 100%; 
+    justify-content: center; 
+    text-align: center;
+  }
+
+  /* Grids Internos do Modal */
+  .grid2 { 
+    grid-template-columns: 1fr; 
+    gap: 12px;
+  }
+  .topicRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .topicRow .btnSecondary {
+    width: 100%;
+  }
+
+  /* ── Header da aba do Paciente ── */
+  .patientHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+  .patientHeader > button {
+    width: 100%; 
+  }
+
+  /* ── Grid de Informações do Paciente ── */
+  .infoGrid {
+    grid-template-columns: 1fr; 
+    padding: 16px;
+    gap: 16px;
+  }
+
+  /* ── Listagem de Evoluções ── */
+  .noteListHeader {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+  .noteListHeader > button {
+    width: 100%;
+  }
+  
+  .noteCard {
+    padding: 14px;
+  }
+  
+  .noteCardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  
+  .noteActions {
+    width: 100%;
+    justify-content: space-between; 
+    gap: 8px;
+    margin-top: 8px;
+  }
+  
+  .btnEdit, .btnDeleteNote {
+    flex: 1; 
+    text-align: center;
+    padding: 8px;
+    font-size: 11px;
+  }
 }
