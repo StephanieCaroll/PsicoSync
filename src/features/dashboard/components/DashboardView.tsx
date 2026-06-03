@@ -5,11 +5,13 @@ import Sidebar, { MenuCategory } from '@/components/Sidebar';
 import PatientsTab from '@/features/patients/components/PatientsTab';
 import EvolutionModal, { ClinicalNote } from '@/features/patients/components/EvolutionModal';
 import ProntuariosTab from '@/features/patients/components/ProntuariosTab';
+import ProfilePage from '@/features/profile/Profilepage'; // ← import da nova página
 import { useDashboard, Patient, Appointment } from '@/features/dashboard/hooks/useDashboard';
 import type { Patient as AppwritePatient } from '@/features/patients/usePatients';
 import styles from './DashboardView.module.css';
+import AgendaTab from '@/features/agenda/components/AgendaTab';
 
-/* ── PatientModal (inline) ── */
+
 interface PatientModalProps {
   patient: Patient;
   notes: ClinicalNote[];
@@ -180,9 +182,8 @@ function EvolucaoTab({ patients, notes, notesLoading, onNewNote, onEditNote, onD
 
   return (
     <div className={`${styles.evolutionsGrid} ${selectedPatientId ? styles.patientSelected : ''}`}>
-      {/* Painel Esquerdo */}
       <div className={styles.evolutionsList}>
-        <div style={{ display: 'flex', alignItems: 'center', background: '#FDFAF5', border: '1.5px solid #E8D9BE', borderRadius: 12, padding: '0 14px', transition: 'all 0.2s ease' }}>
+        <div style={{ display: 'flex', alignItems: 'center', background: '#FDFAF5', border: '1.5px solid #E8D9BE', borderRadius: 12, padding: '0 14px' }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#9A7040" strokeWidth="2" style={{ flexShrink: 0 }}>
             <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
           </svg>
@@ -241,7 +242,6 @@ function EvolucaoTab({ patients, notes, notesLoading, onNewNote, onEditNote, onD
         </div>
       </div>
 
-      {/* Painel Direito */}
       <div className={styles.evolutionsContent}>
         {!selectedPatient ? (
           <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 40, color: '#9A7040', gap: 12 }}>
@@ -366,7 +366,7 @@ function EvolucaoTab({ patients, notes, notesLoading, onNewNote, onEditNote, onD
   );
 }
 
-/* ── Menu definition ── */
+/* ── Menu ── */
 const MENU_CATEGORIES: MenuCategory[] = [
   {
     title: 'Visão Geral',
@@ -429,7 +429,7 @@ const MENU_CATEGORIES: MenuCategory[] = [
 
 const allMenuItems = MENU_CATEGORIES.flatMap(c => c.items);
 
-/* ── Component ── */
+/* ── Main Component ── */
 interface DashboardViewProps {
   onLogout?: () => void;
   userId: string;
@@ -439,6 +439,9 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
   const dash = useDashboard();
   const appointments: Appointment[] = Array.isArray(dash.appointments) ? dash.appointments : [];
   const patients: Patient[]         = Array.isArray(dash.patients) ? dash.patients : [];
+
+  // ── Profile page state ──────────────────────────────────────────────────────
+  const [showProfile, setShowProfile] = useState(false);
 
   const handleSelectAppwritePatient = (ap: AppwritePatient) => {
     const p: Patient = {
@@ -454,6 +457,11 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
     dash.setActiveTab(id);
     dash.setMobileMenuOpen(false);
   };
+
+  // If profile page is open, render it full-screen instead of dashboard
+  if (showProfile) {
+    return <ProfilePage onBack={() => setShowProfile(false)} />;
+  }
 
   const financialTotalMonth = 5250;
   const financialReceived   = financialTotalMonth - dash.pendingTotal;
@@ -515,6 +523,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
         userCrp={dash.userCrp}
         userSpecialty={dash.userSpecialty}
         onLogout={onLogout}
+        onProfileClick={() => setShowProfile(true)}   // ← abre página de perfil
         menuCategories={MENU_CATEGORIES}
       />
 
@@ -547,6 +556,20 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
               </svg>
               {dash.notifications.length > 0 && <span className={styles.notifDot} />}
             </div>
+
+            {/* ── Profile shortcut button ── */}
+            <button
+              className={styles.btnProfile}
+              onClick={() => setShowProfile(true)}
+              title="Meu perfil"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                <circle cx="9" cy="7" r="4" />
+              </svg>
+              <span>{dash.userName.split(' ')[0] || 'Perfil'}</span>
+            </button>
+
             <button className={styles.btnPrimary} onClick={() => handleTabChange('pacientes')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <line x1="12" y1="5" x2="12" y2="19" />
@@ -713,7 +736,6 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
             </div>
           )}
 
-          {/* EVOLUÇÃO TAB */}
           {dash.activeTab === 'evolucao' && (
             <EvolucaoTab
               patients={dash.patients}
@@ -725,12 +747,10 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
             />
           )}
 
-          {/* PATIENTS TAB */}
           {dash.activeTab === 'pacientes' && (
             <PatientsTab userId={userId} onSelectPatient={handleSelectAppwritePatient} />
           )}
 
-          {/* FINANCIAL TAB */}
           {dash.activeTab === 'resumo-fin' && (
             <div className={styles.card}>
               <h3 className={styles.cardTitle}>Resumo Financeiro</h3>
@@ -749,7 +769,17 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
             </div>
           )}
 
-          {/* PRONTUÁRIOS TAB */}
+          {dash.activeTab === 'agenda' && (
+            <AgendaTab
+              userId={userId}
+              patients={dash.patients.map(p => ({
+                id: p.id,
+                name: p.name,
+                therapyType: p.therapyType,
+              }))}
+            />
+          )}
+
           {dash.activeTab === 'prontuarios' && (
             <ProntuariosTab
               patients={dash.patients}
@@ -763,8 +793,7 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
             />
           )}
 
-          {/* OTHER TABS */}
-          {!['dashboard', 'pacientes', 'resumo-fin', 'evolucao', 'prontuarios'].includes(dash.activeTab) && (
+          {!['dashboard', 'pacientes', 'resumo-fin', 'evolucao', 'prontuarios', 'agenda'].includes(dash.activeTab) && (
             <div className={styles.card}>
               <div className={styles.emptyState}>
                 <div className={styles.emptyIcon}>
