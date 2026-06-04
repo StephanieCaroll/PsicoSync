@@ -1,9 +1,8 @@
-
 'use client';
 
 import React, { useState, useMemo, useCallback } from 'react';
 import SessionModal from './SessionModal';
-import { useAgenda, Session, SessionStatus } from '../hooks/useAgenda';
+import { useAgenda, Session, SessionStatus, SessionType, RecurrenceType } from '../hooks/useAgenda';
 import styles from './AgendaTab.module.css';
 
 interface Patient {
@@ -12,9 +11,19 @@ interface Patient {
   therapyType?: string;
 }
 
+interface Appointment {
+  id: string;
+  patientId: string;
+  patientName?: string;
+  time: string;
+  date?: string;
+  type?: string;
+}
+
 interface AgendaTabProps {
   userId: string;
   patients: Patient[];
+  appointments?: Appointment[];
 }
 
 const WEEK_DAYS  = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -36,7 +45,7 @@ function toDateStr(d: Date) {
 
 function getWeekStart(d: Date) {
   const day = new Date(d);
-  day.setDate(d.getDate() - d.getDay()); // Sunday
+  day.setDate(d.getDate() - d.getDay()); 
   return day;
 }
 
@@ -83,7 +92,7 @@ function SessionCard({
       <div className={styles.sessionCardInner}>
         <div className={styles.sessionCardTime} style={{ color: cfg.color }}>
           {session.startTime}
-          {!compact && ` – ${session.endTime}`}
+          {!compact && session.endTime ? ` – ${session.endTime}` : ''}
         </div>
         <div className={styles.sessionCardName} title={session.patientName}>
           {session.patientName}
@@ -150,7 +159,6 @@ function WeekView({
 
   return (
     <div className={styles.weekGrid}>
-     
       <div className={styles.weekHeader}>
         <div className={styles.weekTimeGutter} />
         {weekDays.map((d, i) => {
@@ -230,7 +238,6 @@ function MonthView({
 
   return (
     <div className={styles.monthGrid}>
-     
       {WEEK_DAYS.map(d => (
         <div key={d} className={styles.monthDayName}>{d}</div>
       ))}
@@ -326,7 +333,7 @@ function ListView({
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               {grouped[date].map(s => {
-                const cfg = STATUS_CONFIG[s.status];
+                const cfg = STATUS_CONFIG[s.status] || STATUS_CONFIG['confirmada'];
                 return (
                   <div
                     key={s.$id}
@@ -336,7 +343,7 @@ function ListView({
                   >
                     <div className={styles.listItemTime} style={{ color: cfg.color }}>
                       {s.startTime}
-                      <span style={{ opacity: 0.6, fontSize: 11 }}> – {s.endTime}</span>
+                      {s.endTime && <span style={{ opacity: 0.6, fontSize: 11 }}> – {s.endTime}</span>}
                     </div>
                     <div className={styles.listItemInfo}>
                       <div className={styles.listItemName}>{s.patientName}</div>
@@ -379,7 +386,7 @@ function ListView({
   );
 }
 
-export default function AgendaTab({ userId, patients }: AgendaTabProps) {
+export default function AgendaTab({ userId, patients, appointments = [] }: AgendaTabProps) {
   const agenda = useAgenda(userId);
 
   const today    = toDateStr(new Date());
@@ -423,15 +430,43 @@ export default function AgendaTab({ userId, patients }: AgendaTabProps) {
   }, [view, weekDays, year, month, currentDate]);
 
   const visibleSessions = useMemo(() => {
-    let s = agenda.sessionsInRange(rangeFrom, rangeTo);
-    if (filterStatus !== 'all') s = s.filter(x => x.status === filterStatus);
-    return s;
-  }, [agenda.sessionsInRange, rangeFrom, rangeTo, filterStatus]);
+    let s = agenda.sessionsInRange ? agenda.sessionsInRange(rangeFrom, rangeTo) : [];
+    
+    const mappedAppointments: Session[] = appointments.map(apt => {
+      const h = parseInt(apt.time.split(':')[0] || '0', 10);
+      return {
+        $id: apt.id,
+        userId,
+        patientId: apt.patientId,
+        patientName: apt.patientName || patients.find(p => p.id === apt.patientId)?.name || 'Paciente',
+        date: apt.date || today,
+        startTime: apt.time,
+        endTime: `${String(h + 1).padStart(2, '0')}:00`,
+        status: 'confirmada',
+        type: (apt.type as SessionType) || 'presencial',
+        notes: '',
+        isRecurring: false,
+        recurrenceType: 'none',
+        recurrenceDays: '',
+        recurrenceEndDate: ''
+      };
+    });
 
-  const weekSessions = agenda.sessionsInRange(
-    toDateStr(weekDays[0]),
-    toDateStr(weekDays[6]),
-  );
+    const existingIds = new Set(s.map(x => x.$id));
+    mappedAppointments.forEach(ma => {
+      if (!existingIds.has(ma.$id) && ma.date >= rangeFrom && ma.date <= rangeTo) {
+        s.push(ma);
+      }
+    });
+
+    if (filterStatus !== 'all') s = s.filter(x => x.status === filterStatus);
+    return s.sort((a, b) => a.startTime.localeCompare(b.startTime));
+  }, [agenda, rangeFrom, rangeTo, filterStatus, appointments, patients, today, userId]);
+
+  const weekSessions = useMemo(() => {
+    return visibleSessions.filter(s => s.date >= toDateStr(weekDays[0]) && s.date <= toDateStr(weekDays[6]));
+  }, [visibleSessions, weekDays]);
+
   const kpis = useMemo(() => ({
     total:      weekSessions.length,
     realizadas: weekSessions.filter(s => s.status === 'realizada').length,
@@ -452,18 +487,23 @@ export default function AgendaTab({ userId, patients }: AgendaTabProps) {
   };
 
   const handleSave = useCallback(async (data: any) => {
-    if (editSession) {
+    if (editSession && agenda.updateSession) {
       await agenda.updateSession(editSession.$id, data);
-    } else {
+    } else if (agenda.addSession) {
       await agenda.addSession(data);
     }
+    setShowModal(false);
   }, [editSession, agenda]);
 
   const handleDelete = async (s: Session) => {
     if (!confirm(`Remover sessão de ${s.patientName} em ${s.date}?`)) return;
     setDeletingId(s.$id);
-    try { await agenda.deleteSession(s.$id); }
-    finally { setDeletingId(null); setShowModal(false); }
+    try { 
+      if (agenda.deleteSession) await agenda.deleteSession(s.$id); 
+    } finally { 
+      setDeletingId(null); 
+      setShowModal(false); 
+    }
   };
 
   const title = useMemo(() => {
@@ -476,13 +516,6 @@ export default function AgendaTab({ userId, patients }: AgendaTabProps) {
     }
     return `${MONTHS_PT[month]} ${year}`;
   }, [view, weekDays, month, year]);
-
-  if (agenda.loading) return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 320, gap: 12, color: '#9A7040' }}>
-      <div style={{ width: 24, height: 24, border: '3px solid #E8D9BE', borderTopColor: '#AD6D15', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-      Carregando agenda…
-    </div>
-  );
 
   return (
     <>
@@ -570,7 +603,7 @@ export default function AgendaTab({ userId, patients }: AgendaTabProps) {
               today={today}
               onSlotClick={(d, t) => openNew(d, t)}
               onSessionClick={openEdit}
-              onStatusChange={agenda.updateStatus}
+              onStatusChange={agenda.updateStatus || (() => {})}
             />
           )}
 
@@ -582,7 +615,7 @@ export default function AgendaTab({ userId, patients }: AgendaTabProps) {
               today={today}
               onDayClick={d => openNew(d)}
               onSessionClick={openEdit}
-              onStatusChange={agenda.updateStatus}
+              onStatusChange={agenda.updateStatus || (() => {})}
             />
           )}
 
@@ -591,7 +624,7 @@ export default function AgendaTab({ userId, patients }: AgendaTabProps) {
               <ListView
                 sessions={visibleSessions}
                 onSessionClick={openEdit}
-                onStatusChange={agenda.updateStatus}
+                onStatusChange={agenda.updateStatus || (() => {})}
                 onNewSession={() => openNew()}
               />
             </div>

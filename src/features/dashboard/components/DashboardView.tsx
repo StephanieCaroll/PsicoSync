@@ -1,15 +1,25 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import Sidebar, { MenuCategory } from '@/components/Sidebar';
 import PatientsTab from '@/features/patients/components/PatientsTab';
 import EvolutionModal, { ClinicalNote } from '@/features/patients/components/EvolutionModal';
 import ProntuariosTab from '@/features/patients/components/ProntuariosTab';
-import ProfilePage from '@/features/profile/Profilepage'; // ← import da nova página
+import ProfilePage from '@/features/profile/Profilepage';
 import { useDashboard, Patient, Appointment } from '@/features/dashboard/hooks/useDashboard';
 import type { Patient as AppwritePatient } from '@/features/patients/usePatients';
 import styles from './DashboardView.module.css';
 import AgendaTab from '@/features/agenda/components/AgendaTab';
+import ResumoFinanceiroTab from './ResumoFinanceiroTab';
+import DocumentosTab from './DocumentosTab';
+import RelatoriosTab from './RelatoriosTab';
+import ConfiguracoesTab from './ConfiguracoesTab';
+import {
+  SalaEsperaTab, TeleconsultaTab, AnamneseTab, TestesTab, DiarioTab,
+  PortalTab, ListaEsperaTab, LembretesTab, AssinaturaTab, BibliotecaTab,
+  RecibosTab, CobrancasTab, SupervisaoTab
+} from './NovasAbas';
 
 
 interface PatientModalProps {
@@ -126,7 +136,6 @@ function PatientModal({ patient, notes, onClose, onNewNote, onEditNote, onDelete
   );
 }
 
-/* ── EvolucaoTab ── */
 interface EvolucaoTabProps {
   patients: Patient[];
   notes: ClinicalNote[];
@@ -366,7 +375,6 @@ function EvolucaoTab({ patients, notes, notesLoading, onNewNote, onEditNote, onD
   );
 }
 
-/* ── Menu ── */
 const MENU_CATEGORIES: MenuCategory[] = [
   {
     title: 'Visão Geral',
@@ -422,14 +430,338 @@ const MENU_CATEGORIES: MenuCategory[] = [
     items: [
       { id: 'supervisao',    label: 'Supervisão Clínica',       icon: <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /> },
       { id: 'relatorios',    label: 'Relatórios Estatísticos',  icon: <path d="M18 20V10M12 20V4M6 20v-6" /> },
-      { id: 'configuracoes', label: 'Configurações da Clínica', icon: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></> },
+      { id: 'configuracoes', label: 'Configurações do Sistema', icon: <><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" /></> },
     ],
   },
 ];
 
 const allMenuItems = MENU_CATEGORIES.flatMap(c => c.items);
 
-/* ── Main Component ── */
+interface DashboardHeaderProps {
+  activeTab: string;
+  activeTabLabel: string;
+  currentDate: string;
+  notificationsCount: number;
+  userName: string;
+  onOpenMobileMenu: () => void;
+  onOpenProfile: () => void;
+  onNewPatient: () => void;
+}
+
+function DashboardHeader({
+  activeTab,
+  activeTabLabel,
+  currentDate,
+  notificationsCount,
+  userName,
+  onOpenMobileMenu,
+  onOpenProfile,
+  onNewPatient
+}: DashboardHeaderProps) {
+  return (
+    <header className={styles.header}>
+      <div className={styles.headerLeft}>
+        <button className={styles.btnMobileMenu} onClick={onOpenMobileMenu} aria-label="Abrir menu">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="3" y1="6" x2="21" y2="6" />
+            <line x1="3" y1="12" x2="21" y2="12" />
+            <line x1="3" y1="18" x2="21" y2="18" />
+          </svg>
+        </button>
+        <div className={styles.headerTitleWrapper}>
+          <h2 className={styles.headerTitle}>
+            {activeTab === 'dashboard' ? 'Painel de Controle' : activeTabLabel}
+          </h2>
+          <p className={styles.headerSubtitle}>{currentDate}</p>
+        </div>
+      </div>
+
+      <div className={styles.headerActions}>
+        <div className={styles.notifBell}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A3E20" strokeWidth="1.8">
+            <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+            <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+          </svg>
+          {notificationsCount > 0 && <span className={styles.notifDot} />}
+        </div>
+
+        <button
+          className={styles.btnProfile}
+          onClick={onOpenProfile}
+          title="Meu perfil"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+          </svg>
+          <span>{userName.split(' ')[0] || 'Perfil'}</span>
+        </button>
+
+        <button className={styles.btnPrimary} onClick={onNewPatient}>
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <line x1="12" y1="5" x2="12" y2="19" />
+            <line x1="5" y1="12" x2="19" y2="12" />
+          </svg>
+          <span>Novo Paciente</span>
+        </button>
+      </div>
+    </header>
+  );
+}
+
+interface DashboardKPIsProps {
+  todayAppointments: number;
+  isLoadingPatients: boolean;
+  patientsLength: number;
+  activePatients: number;
+  financialTotalMonth: number;
+  pendingTotal: number;
+  recoveryRate: string;
+  pendingEvolutionsCount: number;
+  birthdaysOfMonth: any[];
+}
+
+function DashboardKPIs({
+  todayAppointments,
+  isLoadingPatients,
+  patientsLength,
+  activePatients,
+  financialTotalMonth,
+  pendingTotal,
+  recoveryRate,
+  pendingEvolutionsCount,
+  birthdaysOfMonth,
+}: DashboardKPIsProps) {
+  return (
+    <div className={styles.kpiGrid}>
+      <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay1}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className={styles.kpiTitle}>Consultas Hoje</span>
+          <div className={styles.kpiIcon} style={{ color: '#AD6D15', background: '#F5ECD8' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+            </svg>
+          </div>
+        </div>
+        <div className={styles.kpiValue}>{todayAppointments}</div>
+        <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>confirmadas</div>
+      </div>
+
+      <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay2}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className={styles.kpiTitle}>Pacientes Ativos</span>
+          <div className={styles.kpiIcon} style={{ color: '#2E9E5B', background: '#E8F4EC' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+            </svg>
+          </div>
+        </div>
+        <div className={styles.kpiValue}>
+          {isLoadingPatients ? <span className={styles.loadingPulse}>…</span> : patientsLength}
+        </div>
+        <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>{activePatients} ativos</div>
+      </div>
+
+      <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay3}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className={styles.kpiTitle}>Faturamento Mensal</span>
+          <div className={styles.kpiIcon} style={{ color: '#5A3E20', background: '#E8D9BE' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
+            </svg>
+          </div>
+        </div>
+        <div className={styles.kpiValue}>R$ {financialTotalMonth.toLocaleString('pt-BR')}</div>
+        <div className={styles.kpiTitle} style={{ color: '#C45A35' }}>R$ {pendingTotal.toLocaleString('pt-BR')} pendente</div>
+      </div>
+
+      <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay4}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className={styles.kpiTitle}>Taxa de Recebimento</span>
+          <div className={styles.kpiIcon} style={{ color: '#2E9E5B', background: '#E8F4EC' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="12" cy="12" r="10" /><polyline points="16 12 12 8 8 12" /><line x1="12" y1="16" x2="12" y2="8" />
+            </svg>
+          </div>
+        </div>
+        <div className={styles.kpiValue}>{recoveryRate}%</div>
+        <div className={styles.kpiTitle}>do total faturado</div>
+      </div>
+
+      <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay4}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className={styles.kpiTitle}>Evoluções Pendentes</span>
+          <div className={styles.kpiIcon} style={{ color: '#C45A35', background: '#FEF0EC' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <path d="M14 2v6h6M16 13H8M16 17H8M10 9H8" />
+            </svg>
+          </div>
+        </div>
+        <div className={styles.kpiValue}>{pendingEvolutionsCount}</div>
+        <div className={styles.kpiTitle} style={{ color: '#C45A35' }}>pacientes ativos sem evolução recente</div>
+      </div>
+
+      <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay4}`}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+          <span className={styles.kpiTitle}>Aniversariantes do Mês</span>
+          <div className={styles.kpiIcon} style={{ color: '#AD6D15', background: '#F5ECD8' }}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="20 12 20 22 4 22 4 12" />
+              <rect x="2" y="7" width="20" height="5" />
+              <line x1="12" y1="22" x2="12" y2="7" />
+              <path d="M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7z" />
+              <path d="M12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z" />
+            </svg>
+          </div>
+        </div>
+        <div className={styles.kpiValue}>{birthdaysOfMonth.length}</div>
+        <div className={styles.kpiTitle} style={{ color: '#9A7040' }}>
+          {birthdaysOfMonth.length > 0 ? birthdaysOfMonth.slice(0, 3).map(p => p.name.split(' ')[0]).join(', ') + (birthdaysOfMonth.length > 3 ? ` e +${birthdaysOfMonth.length - 3}` : '') : 'Nenhum neste mês'}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+interface DashboardAgendaCardProps {
+  appointments: Appointment[];
+  patients: Patient[];
+  onViewAll: () => void;
+  onNewNote: (patient: Patient) => void;
+}
+
+function DashboardAgendaCard({ appointments, patients, onViewAll, onNewNote }: DashboardAgendaCardProps) {
+  return (
+    <div className={styles.card}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <h3 className={styles.cardTitle} style={{ margin: 0 }}>Agenda de Hoje</h3>
+        <button className={styles.btnAction} onClick={onViewAll}>Ver completa</button>
+      </div>
+      {appointments.map((apt: Appointment) => {
+        const aptPatient = patients.find(p => p.id === apt.patientId) as any;
+        let isBirthday = false;
+        if (aptPatient?.birthDate) {
+          const today = new Date();
+          const [y, m, d] = aptPatient.birthDate.split('T')[0].split('-');
+          if (parseInt(m, 10) === today.getMonth() + 1 && parseInt(d, 10) === today.getDate()) {
+            isBirthday = true;
+          }
+        }
+        return (
+          <div key={apt.id} className={styles.sessionItem}>
+            <div className={styles.sessionLeft}>
+              <div className={styles.sessionTime}>{apt.time}</div>
+              <div className={styles.sessionBar} style={{ background: apt.type === 'online' ? '#2E9E5B' : '#AD6D15' }} />
+              <div>
+                <div className={styles.sessionName} style={{ fontSize: 14, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {apt.patientName}
+                  {isBirthday && <span title="Aniversariante do dia!">🎉</span>}
+                </div>
+                <div className={styles.sessionType} style={{ fontSize: 11, fontWeight: 500 }}>{apt.type === 'online' ? '🖥 Teleconsulta' : '🏥 Presencial'}</div>
+              </div>
+            </div>
+            <button className={styles.btnAction} style={{ fontSize: 10, padding: '6px 10px' }}
+              onClick={() => { if (aptPatient) onNewNote(aptPatient); }}>
+              + Evolução
+            </button>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+interface DashboardRecentNotesCardProps {
+  notes: ClinicalNote[];
+  notesLoading: boolean;
+  onViewAll: () => void;
+}
+
+function DashboardRecentNotesCard({ notes, notesLoading, onViewAll }: DashboardRecentNotesCardProps) {
+  return (
+    <div className={styles.card}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <h3 className={styles.cardTitle} style={{ margin: 0 }}>Evoluções Recentes</h3>
+        <button className={styles.btnAction} onClick={onViewAll}>Ver todas</button>
+      </div>
+      {notesLoading ? (
+        <p className={styles.loadingPulse}>Carregando…</p>
+      ) : notes.length === 0 ? (
+        <div className={styles.emptyState} style={{ padding: '32px 0' }}>
+          <p style={{ color: '#9A7040', fontSize: 13 }}>Nenhuma evolução registrada ainda.</p>
+        </div>
+      ) : (
+        notes.slice(0, 5).map(note => (
+          <div key={note.id} className={styles.sessionItem}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: '#2D1F0A' }}>{note.patientName}</div>
+              <div style={{ fontSize: 11, color: '#9A7040', marginTop: 2 }}>
+                {new Date(note.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
+                {note.mood && ` · ${note.mood}`}
+              </div>
+            </div>
+            <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: '#F5ECD8', color: '#AD6D15' }}>{note.mood ?? '—'}</span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+}
+
+interface DashboardRecentPatientsCardProps {
+  patients: Patient[];
+  isLoadingPatients: boolean;
+  notesForPatient: (id: string) => ClinicalNote[];
+  onViewAll: () => void;
+  onNewNote: (patient: Patient) => void;
+  onOpenPatientModal: (patient: Patient) => void;
+}
+
+function DashboardRecentPatientsCard({ patients, isLoadingPatients, notesForPatient, onViewAll, onNewNote, onOpenPatientModal }: DashboardRecentPatientsCardProps) {
+  return (
+    <div className={styles.card}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <h3 className={styles.cardTitle} style={{ margin: 0 }}>Pacientes Recentes</h3>
+        <button className={styles.btnAction} onClick={onViewAll}>Ver todos</button>
+      </div>
+      {isLoadingPatients ? (
+        <p className={styles.loadingPulse}>Carregando…</p>
+      ) : (
+        <div className={styles.tableWrapper}>
+          <table className={styles.table}>
+            <thead>
+              <tr><th>Paciente</th><th>Status</th><th>Evoluções</th><th>Ações</th></tr>
+            </thead>
+            <tbody>
+              {patients.slice(0, 6).map((pt: any) => (
+                <tr key={pt.id}>
+                  <td>
+                    <div style={{ fontWeight: 600, color: '#2D1F0A', fontSize: 14 }}>{pt.name}</div>
+                    <div style={{ fontSize: 11, color: '#9A7040' }}>{pt.therapyType || 'Terapia'}</div>
+                  </td>
+                  <td>
+                    <span className={`${styles.badge} ${pt.status === 'active' ? styles.badgeActive : pt.status === 'waiting' ? styles.badgeWaiting : styles.badgeInactive}`}>
+                      {pt.status === 'active' ? 'Ativo' : pt.status === 'waiting' ? 'Aguardando' : 'Inativo'}
+                    </span>
+                  </td>
+                  <td><span style={{ fontSize: 13, color: '#9A7040' }}>{notesForPatient(pt.id).length} registros</span></td>
+                  <td>
+                    <div className={styles.tableActions}>
+                      <button className={styles.btnAction} style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => onNewNote(pt)}>+ Evolução</button>
+                      <button className={styles.btnPrimary} style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => onOpenPatientModal(pt)}>Prontuário</button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface DashboardViewProps {
   onLogout?: () => void;
   userId: string;
@@ -440,16 +772,18 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
   const appointments: Appointment[] = Array.isArray(dash.appointments) ? dash.appointments : [];
   const patients: Patient[]         = Array.isArray(dash.patients) ? dash.patients : [];
 
-  // ── Profile page state ──────────────────────────────────────────────────────
   const [showProfile, setShowProfile] = useState(false);
 
   const handleSelectAppwritePatient = (ap: AppwritePatient) => {
-    const p: Patient = {
+    const p = {
       id: ap.$id, name: ap.name, phone: ap.phone, email: ap.email,
       status: ap.status as any, nextSession: ap.nextSession,
       pendingAmount: ap.pendingAmount, lastSession: ap.lastSession,
       therapyType: ap.therapyType,
-    };
+      sessionValue: ap.sessionValue,
+      frequency: ap.frequency,
+      birthDate: ap.birthDate,
+    } as unknown as Patient;
     dash.openPatientModal(p);
   };
 
@@ -458,23 +792,59 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
     dash.setMobileMenuOpen(false);
   };
 
-  // If profile page is open, render it full-screen instead of dashboard
-  if (showProfile) {
-    return <ProfilePage onBack={() => setShowProfile(false)} />;
-  }
+  const financialTotalMonth = useMemo(() => {
+    return patients.reduce((acc, p: any) => {
+      if (p.status !== 'active') return acc;
+      const value = p.sessionValue || 0;
+      let multiplier = 0;
+      if (p.frequency === 'Semanal') multiplier = 4;
+      else if (p.frequency === 'Quinzenal') multiplier = 2;
+      else if (p.frequency === 'Mensal') multiplier = 1;
+      return acc + (value * multiplier);
+    }, 0);
+  }, [patients]);
 
-  const financialTotalMonth = 5250;
-  const financialReceived   = financialTotalMonth - dash.pendingTotal;
+  const birthdaysOfMonth = useMemo(() => {
+    const currentMonth = new Date().getMonth() + 1;
+    return patients.filter((p: any) => {
+      if (!p.birthDate) return false;
+      const [year, month] = p.birthDate.split('T')[0].split('-');
+      if (!month) return false;
+      return parseInt(month, 10) === currentMonth;
+    });
+  }, [patients]);
+
+  const financialReceived   = Math.max(0, financialTotalMonth - dash.pendingTotal);
   const recoveryRate        = financialTotalMonth > 0
     ? ((financialReceived / financialTotalMonth) * 100).toFixed(1)
     : '0.0';
+
+  const pendingEvolutionsCount = useMemo(() => {
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    return patients.filter(p => {
+      if (p.status !== 'active') return false;
+      const patientNotes = dash.notes.filter(n => n.patientId === p.id);
+      if (patientNotes.length === 0) return true;
+      const lastNoteDate = new Date(Math.max(...patientNotes.map(n => new Date(n.date).getTime())));
+      return lastNoteDate < oneWeekAgo;
+    }).length;
+  }, [patients, dash.notes]);
+
+  const myNotes = useMemo(() => {
+    // Filtra as notas para exibir apenas as dos pacientes que o usuário atual possui
+    return dash.notes.filter(note => patients.some(p => p.id === note.patientId));
+  }, [dash.notes, patients]);
+
+  if (showProfile) {
+    return <ProfilePage onBack={() => setShowProfile(false)} />;
+  }
 
   const activeTabLabel = allMenuItems.find(m => m.id === dash.activeTab)?.label ?? '';
 
   return (
     <div className={styles.container}>
 
-      {/* Modals */}
       {dash.showPatientModal && dash.selectedPatient && (
         <PatientModal
           patient={dash.selectedPatient}
@@ -496,7 +866,6 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
         />
       )}
 
-      {/* Notifications */}
       <div className={styles.notificationContainer}>
         {dash.notifications.map(n => (
           <div key={n.id} className={`${styles.notificationItem} ${n.type === 'success' ? styles.notifSuccess : n.type === 'error' ? styles.notifError : styles.notifInfo}`}>
@@ -506,13 +875,11 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
         ))}
       </div>
 
-      {/* Mobile overlay */}
       <div
         className={`${styles.overlay} ${dash.isMobileMenuOpen ? styles.overlayOpen : ''}`}
         onClick={() => dash.setMobileMenuOpen(false)}
       />
 
-      {/* ── Sidebar ── */}
       <Sidebar
         activeTab={dash.activeTab}
         onTabChange={handleTabChange}
@@ -523,293 +890,156 @@ export default function DashboardView({ onLogout, userId }: DashboardViewProps) 
         userCrp={dash.userCrp}
         userSpecialty={dash.userSpecialty}
         onLogout={onLogout}
-        onProfileClick={() => setShowProfile(true)}   // ← abre página de perfil
+        onProfileClick={() => setShowProfile(true)}
         menuCategories={MENU_CATEGORIES}
       />
 
-      {/* ── Main ── */}
       <div className={styles.main}>
 
-        {/* Header */}
-        <header className={styles.header}>
-          <div className={styles.headerLeft}>
-            <button className={styles.btnMobileMenu} onClick={() => dash.setMobileMenuOpen(true)} aria-label="Abrir menu">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </button>
-            <div className={styles.headerTitleWrapper}>
-              <h2 className={styles.headerTitle}>
-                {dash.activeTab === 'dashboard' ? 'Painel de Controle' : activeTabLabel}
-              </h2>
-              <p className={styles.headerSubtitle}>{dash.currentDate}</p>
-            </div>
-          </div>
+        <DashboardHeader
+          activeTab={dash.activeTab}
+          activeTabLabel={activeTabLabel}
+          currentDate={dash.currentDate}
+          notificationsCount={dash.notifications.length}
+          userName={dash.userName}
+          onOpenMobileMenu={() => dash.setMobileMenuOpen(true)}
+          onOpenProfile={() => setShowProfile(true)}
+          onNewPatient={() => handleTabChange('pacientes')}
+        />
 
-          <div className={styles.headerActions}>
-            <div className={styles.notifBell}>
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#5A3E20" strokeWidth="1.8">
-                <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
-                <path d="M13.73 21a2 2 0 0 1-3.46 0" />
-              </svg>
-              {dash.notifications.length > 0 && <span className={styles.notifDot} />}
-            </div>
-
-            {/* ── Profile shortcut button ── */}
-            <button
-              className={styles.btnProfile}
-              onClick={() => setShowProfile(true)}
-              title="Meu perfil"
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-              </svg>
-              <span>{dash.userName.split(' ')[0] || 'Perfil'}</span>
-            </button>
-
-            <button className={styles.btnPrimary} onClick={() => handleTabChange('pacientes')}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="5" x2="12" y2="19" />
-                <line x1="5" y1="12" x2="19" y2="12" />
-              </svg>
-              <span>Novo Paciente</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Content */}
         <main className={styles.content}>
 
-          {/* DASHBOARD TAB */}
-          {dash.activeTab === 'dashboard' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-              <div className={styles.kpiGrid}>
-                <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay1}`}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span className={styles.kpiTitle}>Consultas Hoje</span>
-                    <div className={styles.kpiIcon} style={{ color: '#AD6D15', background: '#F5ECD8' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className={styles.kpiValue}>{dash.todayAppointments}</div>
-                  <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>confirmadas</div>
-                </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={dash.activeTab}
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -15 }}
+              transition={{ duration: 0.25, ease: 'easeOut' }}
+              style={{ flex: 1, height: '100%' }}
+            >
+              {dash.activeTab === 'dashboard' && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+                  <DashboardKPIs
+                    todayAppointments={dash.todayAppointments}
+                    isLoadingPatients={dash.isLoadingPatients}
+                    patientsLength={dash.patients.length}
+                    activePatients={dash.activePatients}
+                    financialTotalMonth={financialTotalMonth}
+                    pendingTotal={dash.pendingTotal}
+                    recoveryRate={recoveryRate}
+                    pendingEvolutionsCount={pendingEvolutionsCount}
+                    birthdaysOfMonth={birthdaysOfMonth}
+                  />
 
-                <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay2}`}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span className={styles.kpiTitle}>Pacientes Ativos</span>
-                    <div className={styles.kpiIcon} style={{ color: '#2E9E5B', background: '#E8F4EC' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className={styles.kpiValue}>
-                    {dash.isLoadingPatients ? <span className={styles.loadingPulse}>…</span> : dash.patients.length}
-                  </div>
-                  <div className={styles.kpiTitle} style={{ color: '#2E9E5B' }}>{dash.activePatients} ativos</div>
-                </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+                    <DashboardAgendaCard
+                      appointments={appointments}
+                      patients={patients}
+                      onViewAll={() => handleTabChange('agenda')}
+                      onNewNote={dash.openNewNoteModal}
+                    />
 
-                <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay3}`}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span className={styles.kpiTitle}>Faturamento Mensal</span>
-                    <div className={styles.kpiIcon} style={{ color: '#5A3E20', background: '#E8D9BE' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-                      </svg>
-                    </div>
+                    <DashboardRecentNotesCard
+                      notes={myNotes}
+                      notesLoading={dash.notesLoading}
+                      onViewAll={() => handleTabChange('evolucao')}
+                    />
                   </div>
-                  <div className={styles.kpiValue}>R$ {financialTotalMonth.toLocaleString('pt-BR')}</div>
-                  <div className={styles.kpiTitle} style={{ color: '#C45A35' }}>R$ {dash.pendingTotal.toLocaleString('pt-BR')} pendente</div>
-                </div>
 
-                <div className={`${styles.card} ${styles.animFadeUp} ${styles.delay4}`}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <span className={styles.kpiTitle}>Taxa de Recebimento</span>
-                    <div className={styles.kpiIcon} style={{ color: '#2E9E5B', background: '#E8F4EC' }}>
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <circle cx="12" cy="12" r="10" /><polyline points="16 12 12 8 8 12" /><line x1="12" y1="16" x2="12" y2="8" />
-                      </svg>
-                    </div>
-                  </div>
-                  <div className={styles.kpiValue}>{recoveryRate}%</div>
-                  <div className={styles.kpiTitle}>do total faturado</div>
+                  <DashboardRecentPatientsCard
+                    patients={dash.patients}
+                    isLoadingPatients={dash.isLoadingPatients}
+                    notesForPatient={dash.notesForPatient}
+                    onViewAll={() => handleTabChange('pacientes')}
+                    onNewNote={dash.openNewNoteModal}
+                    onOpenPatientModal={dash.openPatientModal}
+                  />
                 </div>
-              </div>
+              )}
 
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+              {dash.activeTab === 'evolucao' && (
+                <EvolucaoTab
+                  patients={dash.patients}
+                  notes={dash.notes}
+                  notesLoading={dash.notesLoading}
+                  onNewNote={dash.openNewNoteModal}
+                  onEditNote={dash.openEditNoteModal}
+                  onDeleteNote={dash.handleDeleteNote}
+                />
+              )}
+
+              {dash.activeTab === 'pacientes' && (
+                <PatientsTab userId={userId} onSelectPatient={handleSelectAppwritePatient} />
+              )}
+
+              {dash.activeTab === 'resumo-fin' && (
+                <ResumoFinanceiroTab patients={dash.patients} pendingTotal={dash.pendingTotal} financialTotalMonth={financialTotalMonth} />
+              )}
+
+              {dash.activeTab === 'agenda' && (
+                <AgendaTab
+                  userId={userId}
+                  patients={dash.patients.map(p => ({
+                    id: p.id,
+                    name: p.name,
+                    therapyType: p.therapyType,
+                  }))}
+                  appointments={appointments}
+                />
+              )}
+
+              {dash.activeTab === 'laudos' && (
+                <DocumentosTab patients={dash.patients} userName={dash.userName} userCrp={dash.userCrp} />
+              )}
+
+              {dash.activeTab === 'prontuarios' && (
+                <ProntuariosTab
+                  patients={dash.patients}
+                  notes={dash.notes}
+                  notesLoading={dash.notesLoading}
+                  onNewNote={dash.openNewNoteModal}
+                  onEditNote={dash.openEditNoteModal}
+                  onDeleteNote={dash.handleDeleteNote}
+                  userName={dash.userName}
+                  userCrp={dash.userCrp}
+                />
+              )}
+
+              {dash.activeTab === 'relatorios' && <RelatoriosTab patients={dash.patients} appointments={appointments} />}
+              {dash.activeTab === 'configuracoes' && <ConfiguracoesTab />}
+              {dash.activeTab === 'sala-espera' && <SalaEsperaTab />}
+              {dash.activeTab === 'teleconsulta' && <TeleconsultaTab />}
+              {dash.activeTab === 'anamnese' && <AnamneseTab patients={dash.patients} />}
+              {dash.activeTab === 'testes' && <TestesTab patients={dash.patients} />}
+              {dash.activeTab === 'diario' && <DiarioTab patients={dash.patients} />}
+              {dash.activeTab === 'portal' && <PortalTab />}
+              {dash.activeTab === 'lista-espera' && <ListaEsperaTab />}
+              {dash.activeTab === 'lembretes' && <LembretesTab />}
+              {dash.activeTab === 'assinatura' && <AssinaturaTab />}
+              {dash.activeTab === 'biblioteca' && <BibliotecaTab />}
+              {dash.activeTab === 'recibos' && <RecibosTab patients={dash.patients} />}
+              {dash.activeTab === 'cobrancas' && <CobrancasTab patients={dash.patients} />}
+              {dash.activeTab === 'supervisao' && <SupervisaoTab />}
+
+              {!['dashboard', 'pacientes', 'resumo-fin', 'evolucao', 'prontuarios', 'agenda', 'laudos', 'relatorios', 'configuracoes', 'sala-espera', 'teleconsulta', 'anamnese', 'testes', 'diario', 'portal', 'lista-espera', 'lembretes', 'assinatura', 'biblioteca', 'recibos', 'cobrancas', 'supervisao'].includes(dash.activeTab) && (
                 <div className={styles.card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-                    <h3 className={styles.cardTitle} style={{ margin: 0 }}>Agenda de Hoje</h3>
-                    <button className={styles.btnAction} onClick={() => handleTabChange('agenda')}>Ver completa</button>
-                  </div>
-                  {appointments.map((apt: Appointment) => (
-                    <div key={apt.id} className={styles.sessionItem}>
-                      <div className={styles.sessionLeft}>
-                        <div className={styles.sessionTime}>{apt.time}</div>
-                        <div className={styles.sessionBar} style={{ background: apt.type === 'online' ? '#2E9E5B' : '#AD6D15' }} />
-                        <div>
-                          <div className={styles.sessionName} style={{ fontSize: 14 }}>{apt.patientName}</div>
-                          <div className={styles.sessionType} style={{ fontSize: 11, fontWeight: 500 }}>{apt.type === 'online' ? '🖥 Teleconsulta' : '🏥 Presencial'}</div>
-                        </div>
-                      </div>
-                      <button className={styles.btnAction} style={{ fontSize: 10, padding: '6px 10px' }}
-                        onClick={() => { const p = patients.find((x: Patient) => x.id === apt.patientId); if (p) dash.openNewNoteModal(p); }}>
-                        + Evolução
-                      </button>
+                  <div className={styles.emptyState}>
+                    <div className={styles.emptyIcon}>
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#AD6D15" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        {allMenuItems.find(m => m.id === dash.activeTab)?.icon}
+                      </svg>
                     </div>
-                  ))}
-                </div>
-
-                <div className={styles.card}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-                    <h3 className={styles.cardTitle} style={{ margin: 0 }}>Evoluções Recentes</h3>
-                    <button className={styles.btnAction} onClick={() => handleTabChange('evolucao')}>Ver todas</button>
+                    <h3 className={styles.emptyTitle}>{activeTabLabel}</h3>
+                    <p className={styles.emptyText}>Este módulo está em desenvolvimento e em breve estará disponível.</p>
+                    <button className={styles.btnAction} style={{ marginTop: 24 }} onClick={() => handleTabChange('dashboard')}>
+                      Voltar ao Painel
+                    </button>
                   </div>
-                  {dash.notesLoading ? (
-                    <p className={styles.loadingPulse}>Carregando…</p>
-                  ) : dash.notes.length === 0 ? (
-                    <div className={styles.emptyState} style={{ padding: '32px 0' }}>
-                      <p style={{ color: '#9A7040', fontSize: 13 }}>Nenhuma evolução registrada ainda.</p>
-                    </div>
-                  ) : (
-                    dash.notes.slice(0, 5).map(note => (
-                      <div key={note.id} className={styles.sessionItem}>
-                        <div>
-                          <div style={{ fontSize: 14, fontWeight: 600, color: '#2D1F0A' }}>{note.patientName}</div>
-                          <div style={{ fontSize: 11, color: '#9A7040', marginTop: 2 }}>
-                            {new Date(note.date).toLocaleDateString('pt-BR', { timeZone: 'UTC' })}
-                            {note.mood && ` · ${note.mood}`}
-                          </div>
-                        </div>
-                        <span style={{ fontSize: 10, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: '#F5ECD8', color: '#AD6D15' }}>{note.mood ?? '—'}</span>
-                      </div>
-                    ))
-                  )}
                 </div>
-              </div>
-
-              <div className={styles.card}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-                  <h3 className={styles.cardTitle} style={{ margin: 0 }}>Pacientes Recentes</h3>
-                  <button className={styles.btnAction} onClick={() => handleTabChange('pacientes')}>Ver todos</button>
-                </div>
-                {dash.isLoadingPatients ? (
-                  <p className={styles.loadingPulse}>Carregando…</p>
-                ) : (
-                  <div className={styles.tableWrapper}>
-                    <table className={styles.table}>
-                      <thead>
-                        <tr><th>Paciente</th><th>Status</th><th>Evoluções</th><th>Ações</th></tr>
-                      </thead>
-                      <tbody>
-                        {dash.patients.slice(0, 6).map(pt => (
-                          <tr key={pt.id}>
-                            <td>
-                              <div style={{ fontWeight: 600, color: '#2D1F0A', fontSize: 14 }}>{pt.name}</div>
-                              <div style={{ fontSize: 11, color: '#9A7040' }}>{pt.therapyType || 'Terapia'}</div>
-                            </td>
-                            <td>
-                              <span className={`${styles.badge} ${pt.status === 'active' ? styles.badgeActive : pt.status === 'waiting' ? styles.badgeWaiting : styles.badgeInactive}`}>
-                                {pt.status === 'active' ? 'Ativo' : pt.status === 'waiting' ? 'Aguardando' : 'Inativo'}
-                              </span>
-                            </td>
-                            <td><span style={{ fontSize: 13, color: '#9A7040' }}>{dash.notesForPatient(pt.id).length} registros</span></td>
-                            <td>
-                              <div className={styles.tableActions}>
-                                <button className={styles.btnAction} style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => dash.openNewNoteModal(pt)}>+ Evolução</button>
-                                <button className={styles.btnPrimary} style={{ padding: '6px 10px', fontSize: 10 }} onClick={() => dash.openPatientModal(pt)}>Prontuário</button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {dash.activeTab === 'evolucao' && (
-            <EvolucaoTab
-              patients={dash.patients}
-              notes={dash.notes}
-              notesLoading={dash.notesLoading}
-              onNewNote={dash.openNewNoteModal}
-              onEditNote={dash.openEditNoteModal}
-              onDeleteNote={dash.handleDeleteNote}
-            />
-          )}
-
-          {dash.activeTab === 'pacientes' && (
-            <PatientsTab userId={userId} onSelectPatient={handleSelectAppwritePatient} />
-          )}
-
-          {dash.activeTab === 'resumo-fin' && (
-            <div className={styles.card}>
-              <h3 className={styles.cardTitle}>Resumo Financeiro</h3>
-              <div className={styles.kpiGrid}>
-                {[
-                  { label: 'Faturamento Total', value: `R$ ${financialTotalMonth.toLocaleString('pt-BR')}`, color: '#2D1F0A' },
-                  { label: 'Recebido',           value: `R$ ${financialReceived.toLocaleString('pt-BR')}`,  color: '#2E9E5B' },
-                  { label: 'Pendente',           value: `R$ ${dash.pendingTotal.toLocaleString('pt-BR')}`,  color: '#C45A35' },
-                ].map(item => (
-                  <div key={item.label} className={styles.finCard}>
-                    <div className={styles.kpiTitle}>{item.label}</div>
-                    <div className={styles.kpiValue} style={{ color: item.color }}>{item.value}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {dash.activeTab === 'agenda' && (
-            <AgendaTab
-              userId={userId}
-              patients={dash.patients.map(p => ({
-                id: p.id,
-                name: p.name,
-                therapyType: p.therapyType,
-              }))}
-            />
-          )}
-
-          {dash.activeTab === 'prontuarios' && (
-            <ProntuariosTab
-              patients={dash.patients}
-              notes={dash.notes}
-              notesLoading={dash.notesLoading}
-              onNewNote={dash.openNewNoteModal}
-              onEditNote={dash.openEditNoteModal}
-              onDeleteNote={dash.handleDeleteNote}
-              userName={dash.userName}
-              userCrp={dash.userCrp}
-            />
-          )}
-
-          {!['dashboard', 'pacientes', 'resumo-fin', 'evolucao', 'prontuarios', 'agenda'].includes(dash.activeTab) && (
-            <div className={styles.card}>
-              <div className={styles.emptyState}>
-                <div className={styles.emptyIcon}>
-                  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#AD6D15" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                    {allMenuItems.find(m => m.id === dash.activeTab)?.icon}
-                  </svg>
-                </div>
-                <h3 className={styles.emptyTitle}>{activeTabLabel}</h3>
-                <p className={styles.emptyText}>Este módulo está em desenvolvimento e em breve estará disponível.</p>
-                <button className={styles.btnAction} style={{ marginTop: 24 }} onClick={() => handleTabChange('dashboard')}>
-                  Voltar ao Painel
-                </button>
-              </div>
-            </div>
-          )}
-
+              )}
+            </motion.div>
+          </AnimatePresence>
         </main>
       </div>
     </div>
